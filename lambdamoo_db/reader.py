@@ -1,6 +1,6 @@
 from io import TextIOWrapper
 import re
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Optional
 from lambdamoo_db.database import (
     Activation,
     MooDatabase,
@@ -14,7 +14,7 @@ from lambdamoo_db.enums import DBVersions, MooTypes
 
 def load(filename: str) -> MooDatabase:
     with open(filename, "r") as f:
-        r = Reader(f)
+        r = Reader(f, filename)
         return r.parse()
 
 
@@ -29,25 +29,30 @@ activationHeaderRe = re.compile(
 pendingValueRe = re.compile(r"(?P<count>\d+) values pending finalization")
 suspendedTaskCountRe = re.compile(r"(?P<count>\d+) suspended tasks")
 suspendedTaskHeaderRe = re.compile(
-    r"(?P<startTime>\d+) (?P<id>\d+)(?P<endchar>\n| )(?P<value>|.+\n)"
+    r"(?P<startTime>\d+) (?P<id>\d+)(?P<endchar>| (?P<value>\d+))$"
 )
 interruptedTaskCountRe = re.compile(r"(?P<count>\d+) interrupted tasks")
-interruptedTaskHeaderRe = re.compile(r"(?P<id>) interrupted reading task")
+interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) interrupted reading task")
 vmHeaderRe = re.compile(
     r"(?P<top>\d+) (?P<vector>-?\d+) (?P<funcId>\d+)(\n| (?P<maxStackframes>\d))"
 )
 connectionCountRe = re.compile(
     r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)"
 )
+langverRe = re.compile(r'language version (?P<version>\d+)')
+stackheaderRe = re.compile(r'(?P<slots>\d+) rt_stack slots in use')
 
+pcRe = re.compile(r'(?P<pc>\d+) (?P<bi_func>\d+) (?P<error>\d+)')
+waifHeaderRe = re.compile(r'(?P<flag>[cr]) (?P<index>\d+)')
 
 class Reader:
-    def __init__(self, fio: TextIOWrapper) -> None:
+    def __init__(self, fio: TextIOWrapper, filename: str = "") -> None:
+        self.filename = filename
         self.file = fio
         self.line = 0
 
     def parse_error(self, message: str) -> NoReturn:
-        raise Exception(f"{message} @ line {self.line}")
+        raise Exception(f"Parse Error: {self.filename}:{self.line} : {message}")
 
     def parse(self) -> "MooDatabase":
         db = MooDatabase()
@@ -71,6 +76,8 @@ class Reader:
         self.readVerbs(db)
         self.readClocks()
         self.readTaskQueue(db)
+        self.readSuspendedTasks(db)
+        self.readConnections()
 
     def parse_v17(self, db: MooDatabase) -> None:
         self.readPlayers(db)
@@ -85,8 +92,11 @@ class Reader:
         db.total_verbs = self.readInt()
         self.readVerbs(db)
 
-    def readValue(self) -> Any:
-        val_type = self.readInt()
+    def readValue(self, known_type: int | None = None) -> Any:
+        if known_type is not None:
+            val_type = known_type
+        else:
+            val_type = self.readInt()
         match val_type:
             case MooTypes.STR:
                 return self.readString()
@@ -110,6 +120,12 @@ class Reader:
                 return self.readMap()
             case MooTypes.BOOL:
                 return self.readBool()
+            case MooTypes._CATCH:
+                return self.readInt()
+            case MooTypes._FINALLY:
+                return self.readInt()
+            case MooTypes.WAIF:
+                return self.readWaif()
             case _:
                 self.parse_error(f"unknown type {val_type}")
 
@@ -131,8 +147,8 @@ class Reader:
     def readObjnum(self) -> int:
         return self.readInt()
 
-    def readBool(self) -> int:
-        return bool(self.readString())
+    def readBool(self) -> bool:
+        return bool(self.readInt())
 
     def readList(self) -> list[Any]:
         length = self.readInt()
@@ -150,6 +166,16 @@ class Reader:
             val = self.readValue()
             map[key] = val
         return map
+
+    def readWaif(self):
+        #  waif.cc:950 read_waif()
+        header = waifHeaderRe.match(self.readString())
+        if header.group('flag') == 'r':
+            # Reference
+            self.parse_error("WAIF reference")
+            return
+
+        self.parse_error("WAIF")
 
     def readObject_v4(self, db: MooDatabase) -> MooObject | None:
         objNumber = self.readString()
@@ -333,13 +359,13 @@ class Reader:
         st = int(headerMatch[2])
         id = int(headerMatch[3])
         task = QueuedTask(firstLineno, id, st)
-        activation = self.readActivation(db)
+        activation = self.read_activation_as_pi(db)
         task.activation = activation
         task.rtEnv = self.readRTEnv()
         task.code = self.readCode()
         db.queuedTasks.append(task)
 
-    def readActivation(self, db: MooDatabase) -> Activation:
+    def read_activation_as_pi(self, db: MooDatabase) -> Activation:
         _ = self.readValue()
         if db.version >= DBVersions.DBV_This:
             _this = self.readValue()
@@ -368,6 +394,29 @@ class Reader:
         activation.verb = self.readString()
         activation.verbname = self.readString()
         return activation
+
+    def read_activation(self, db: MooDatabase) -> Activation:
+        if db.version < DBVersions.DBV_Float:
+            pass
+        else:
+            langver = self.readString()
+            if not (langverMatch := langverRe.match(langver)):
+                self.parse_error(f"Bad language version header {langver}")
+
+        code = self.readCode()
+        rt = self.readRTEnv()
+        stackheader = self.readString()
+        stackheaderMatch = stackheaderRe.match(stackheader)
+        for _ in range(int(stackheaderMatch.group("slots"))):
+            _s = self.readValue()
+        self.read_activation_as_pi(db)
+        _temp = self.readValue()
+        pchead = self.readString()
+        if not (pcMatch := pcRe.match(pchead)):
+            self.parse_error("READ_ACTIV: bad pc")
+        if int(pcMatch.group('bi_func')):
+            func_name = self.readString()
+
 
     def readRTEnv(self) -> dict[str, Any]:
         varCountLine = self.readString()
@@ -404,9 +453,9 @@ class Reader:
         task = QueuedTask(
             0, id, startTime
         )  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
-        if taskMatch.group("value"):
-            task.value = self.readValue()
-
+        if (val := taskMatch.group("value")):
+            task.value = self.readValue(int(val))
+        vm = self.readVM(db)
         db.queuedTasks.append(task)
 
     def readInterruptedTasks(self, db: MooDatabase):
@@ -456,3 +505,18 @@ class Reader:
         t->t.suspended.the_vm = the_vm;
         enqueue_waiting(t);
         """
+
+    def readVM(self, db: MooDatabase):
+        if (db.version >= DBVersions.DBV_TaskLocal):
+            local = self.readValue()
+        else:
+            local = {}
+        header = self.readString()
+        headerMatch = vmHeaderRe.match(header)
+        if not headerMatch:
+            self.parse_error(f"Bad VM Header {header}")
+        top = int(headerMatch.group("top"))
+        stack = []
+        for _ in range(top + 1):
+            stack.append(self.read_activation(db))
+

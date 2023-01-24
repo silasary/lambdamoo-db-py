@@ -32,6 +32,11 @@ class MooObject:
     verbs: list[Verb] = attrs.field(init=False, factory=list)
     properties: list[Property] = attrs.field(init=False, factory=list)
 
+@attrs.define()
+class WAIF:
+    waif_class: int
+    owner: int
+
 
 @attrs.define(init=False)
 class Activation:
@@ -49,6 +54,8 @@ class QueuedTask:
     firstLineno: int
     id: int
     st: int
+
+    value: Any = attrs.field(init=False, default=None)
 
     activation: Activation = attrs.field(init=False)
     rtEnv: dict[str, Any] = attrs.field(init=False)
