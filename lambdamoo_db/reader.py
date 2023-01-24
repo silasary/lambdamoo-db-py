@@ -39,11 +39,12 @@ vmHeaderRe = re.compile(
 connectionCountRe = re.compile(
     r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)"
 )
-langverRe = re.compile(r'language version (?P<version>\d+)')
-stackheaderRe = re.compile(r'(?P<slots>\d+) rt_stack slots in use')
+langverRe = re.compile(r"language version (?P<version>\d+)")
+stackheaderRe = re.compile(r"(?P<slots>\d+) rt_stack slots in use")
 
-pcRe = re.compile(r'(?P<pc>\d+) (?P<bi_func>\d+) (?P<error>\d+)')
-waifHeaderRe = re.compile(r'(?P<flag>[cr]) (?P<index>\d+)')
+pcRe = re.compile(r"(?P<pc>\d+) (?P<bi_func>\d+) (?P<error>\d+)")
+waifHeaderRe = re.compile(r"(?P<flag>[cr]) (?P<index>\d+)")
+
 
 class Reader:
     def __init__(self, fio: TextIOWrapper, filename: str = "") -> None:
@@ -170,7 +171,7 @@ class Reader:
     def readWaif(self):
         #  waif.cc:950 read_waif()
         header = waifHeaderRe.match(self.readString())
-        if header.group('flag') == 'r':
+        if header.group("flag") == "r":
             # Reference
             self.parse_error("WAIF reference")
             return
@@ -414,9 +415,8 @@ class Reader:
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
             self.parse_error("READ_ACTIV: bad pc")
-        if int(pcMatch.group('bi_func')):
+        if int(pcMatch.group("bi_func")):
             func_name = self.readString()
-
 
     def readRTEnv(self) -> dict[str, Any]:
         varCountLine = self.readString()
@@ -453,7 +453,7 @@ class Reader:
         task = QueuedTask(
             0, id, startTime
         )  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
-        if (val := taskMatch.group("value")):
+        if val := taskMatch.group("value"):
             task.value = self.readValue(int(val))
         vm = self.readVM(db)
         db.queuedTasks.append(task)
@@ -507,7 +507,7 @@ class Reader:
         """
 
     def readVM(self, db: MooDatabase):
-        if (db.version >= DBVersions.DBV_TaskLocal):
+        if db.version >= DBVersions.DBV_TaskLocal:
             local = self.readValue()
         else:
             local = {}
@@ -519,4 +519,3 @@ class Reader:
         stack = []
         for _ in range(top + 1):
             stack.append(self.read_activation(db))
-

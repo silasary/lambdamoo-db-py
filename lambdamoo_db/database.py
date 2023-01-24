@@ -32,6 +32,7 @@ class MooObject:
     verbs: list[Verb] = attrs.field(init=False, factory=list)
     properties: list[Property] = attrs.field(init=False, factory=list)
 
+
 @attrs.define()
 class WAIF:
     waif_class: int
