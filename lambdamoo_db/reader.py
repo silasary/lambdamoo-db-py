@@ -497,40 +497,12 @@ class Reader:
         headerMatch = interruptedTaskHeaderRe.match(header)
         if not headerMatch:
             self.parse_error("Bad interrupted tasks header")
-        raise NotImplemented()
-        """
-        int task_id;
-        const char *status;
-        vm the_vm;
+        task_id = headerMatch.group("id")
+        vm = self.readVM(db)
+        # Shrug
+        return None
 
-        # if (dbio_scanf("%d ", &task_id) != 1) {
-        #     errlog("READ_TASK_QUEUE: Bad interrupted task header, count = %d\n",
-        #            interrupted_count);
-        #     return 0;
-        # }
-        if ((status = dbio_read_string()) == nullptr) {
-            errlog("READ_TASK_QUEUE: Bad interrupted task status, count = %d\n",
-                   interrupted_count);
-            return 0;
-        }
-
-        if (!(the_vm = read_vm(task_id))) {
-            errlog("READ_TASK_QUEUE: Bad interrupted task vm, count = %d\n",
-                   interrupted_count);
-            return 0;
-        }
-
-        task *t = (task *)mymalloc(sizeof(task), M_TASK);
-        t->kind = TASK_SUSPENDED;
-        t->t.suspended.start_tv.tv_sec = 0;
-        t->t.suspended.start_tv.tv_usec = 0;
-        t->t.suspended.value.type = TYPE_ERR;
-        t->t.suspended.value.v.err = E_INTRPT;
-        t->t.suspended.the_vm = the_vm;
-        enqueue_waiting(t);
-        """
-
-    def readVM(self, db: MooDatabase):
+    def readVM(self, db: MooDatabase) -> list[Activation]:
         if db.version >= DBVersions.DBV_TaskLocal:
             local = self.readValue(db)
         else:
