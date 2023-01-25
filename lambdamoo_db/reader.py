@@ -2,6 +2,7 @@ from io import TextIOWrapper
 import re
 from typing import Any, NoReturn, Optional
 from lambdamoo_db.database import (
+    WAIF,
     Activation,
     MooDatabase,
     MooObject,
@@ -13,7 +14,7 @@ from lambdamoo_db.enums import DBVersions, MooTypes
 
 
 def load(filename: str) -> MooDatabase:
-    with open(filename, "r") as f:
+    with open(filename, "r", encoding='latin-1') as f:
         r = Reader(f, filename)
         return r.parse()
 
@@ -57,6 +58,7 @@ class Reader:
 
     def parse(self) -> "MooDatabase":
         db = MooDatabase()
+        db.waifs = {}
         db.versionstring = self.readString()
         db.version = int(versionRe.match(db.versionstring).group("version"))
         match db.version:
@@ -82,7 +84,7 @@ class Reader:
 
     def parse_v17(self, db: MooDatabase) -> None:
         self.readPlayers(db)
-        self.readPending()
+        self.readPending(db)
         self.readClocks()
         self.readTaskQueue(db)
         self.readSuspendedTasks(db)
@@ -93,7 +95,7 @@ class Reader:
         db.total_verbs = self.readInt()
         self.readVerbs(db)
 
-    def readValue(self, known_type: int | None = None) -> Any:
+    def readValue(self, db: MooDatabase, *, known_type: int | None = None) -> Any:
         if known_type is not None:
             val_type = known_type
         else:
@@ -112,13 +114,13 @@ class Reader:
             case MooTypes.ERR:
                 return self.readErr()
             case MooTypes.LIST:
-                return self.readList()
+                return self.readList(db)
             case MooTypes.CLEAR:
                 pass
             case MooTypes.NONE:
                 pass
             case MooTypes.MAP:
-                return self.readMap()
+                return self.readMap(db)
             case MooTypes.BOOL:
                 return self.readBool()
             case MooTypes._CATCH:
@@ -126,7 +128,7 @@ class Reader:
             case MooTypes._FINALLY:
                 return self.readInt()
             case MooTypes.WAIF:
-                return self.readWaif()
+                return self.readWaif(db)
             case _:
                 self.parse_error(f"unknown type {val_type}")
 
@@ -151,32 +153,41 @@ class Reader:
     def readBool(self) -> bool:
         return bool(self.readInt())
 
-    def readList(self) -> list[Any]:
+    def readList(self, db: MooDatabase) -> list[Any]:
         length = self.readInt()
         result = []
         for _ in range(length):
-            result.append(self.readValue())
+            result.append(self.readValue(db))
         return result
 
-    def readMap(self) -> dict:
+    def readMap(self, db: MooDatabase) -> dict:
         # self.parse_error(f'MAP @ Line {self.line}')
         items = self.readInt()
         map = {}
         for _ in range(items):
-            key = self.readValue()
-            val = self.readValue()
+            key = self.readValue(db)
+            val = self.readValue(db)
             map[key] = val
         return map
 
-    def readWaif(self):
+    def readWaif(self, db: MooDatabase):
         #  waif.cc:950 read_waif()
         header = waifHeaderRe.match(self.readString())
         if header.group("flag") == "r":
             # Reference
-            self.parse_error("WAIF reference")
-            return
+            return db.waifs[int(header.group("index"))]
 
-        self.parse_error("WAIF")
+        _class = self.readObjnum()
+        owner = self.readObjnum()
+        new = WAIF(_class, owner)
+        propdefs_length = self.readInt()
+
+        db.waifs[int(header.group("index"))] = new
+        props = []
+        while ((cur := self.readInt()) < 3 * 32 and cur > -1):
+            props.append(self.readValue(db))
+        _terminator = self.readString()
+        return new
 
     def readObject_v4(self, db: MooDatabase) -> MooObject | None:
         objNumber = self.readString()
@@ -202,7 +213,7 @@ class Reader:
         for _ in range(numVerbs):
             self.readVerbMetadata(obj)
 
-        self.readProperties(obj)
+        self.readProperties(db, obj)
         return obj
 
     def readObject_ng(self, db: MooDatabase) -> MooObject | None:
@@ -217,19 +228,19 @@ class Reader:
         name = self.readString()
         flags = self.readInt()
         owner = self.readObjnum()
-        location = self.readValue()
+        location = self.readValue(db)
         if db.version >= DBVersions.DBV_Last_Move:
-            last_move = self.readValue()
+            last_move = self.readValue(db)
 
-        contents = self.readValue()
-        parents = self.readValue()
-        children = self.readValue()
+        contents = self.readValue(db)
+        parents = self.readValue(db)
+        children = self.readValue(db)
         obj = MooObject(oid, name, flags, owner, location, parents)
         numVerbs = self.readInt()
         for _ in range(numVerbs):
             self.readVerbMetadata(obj)
 
-        self.readProperties(obj)
+        self.readProperties(db, obj)
         return obj
 
     def readConnections(self) -> None:
@@ -300,7 +311,7 @@ class Reader:
         verb = Verb(name, owner, perms, preps)
         obj.verbs.append(verb)
 
-    def readProperties(self, obj: MooObject):
+    def readProperties(self, db: MooDatabase, obj: MooObject):
         numProperties = self.readInt()
         propertyNames = []
         for _ in range(numProperties):
@@ -310,13 +321,13 @@ class Reader:
             propertyName = None
             if propertyNames:
                 propertyName = propertyNames.pop(0)
-            value = self.readValue()
+            value = self.readValue(db)
             owner = self.readObjnum()
             perms = self.readInt()
             property = Property(propertyName, value, owner, perms)
             obj.properties.append(property)
 
-    def readPending(self) -> None:
+    def readPending(self, db: MooDatabase) -> None:
         valueLine = self.readString()
         valueMatch = pendingValueRe.match(valueLine)
         if not valueMatch:
@@ -324,7 +335,7 @@ class Reader:
 
         finalizationCount = int(valueMatch.group("count"))
         for _ in range(finalizationCount):
-            self.readValue()
+            self.readValue(db)
 
     def readClocks(self) -> None:
         clockLine = self.readString()
@@ -362,16 +373,16 @@ class Reader:
         task = QueuedTask(firstLineno, id, st)
         activation = self.read_activation_as_pi(db)
         task.activation = activation
-        task.rtEnv = self.readRTEnv()
+        task.rtEnv = self.readRTEnv(db)
         task.code = self.readCode()
         db.queuedTasks.append(task)
 
     def read_activation_as_pi(self, db: MooDatabase) -> Activation:
-        _ = self.readValue()
+        _ = self.readValue(db)
         if db.version >= DBVersions.DBV_This:
-            _this = self.readValue()
+            _this = self.readValue(db)
         if db.version >= DBVersions.DBV_Anon:
-            _vloc = self.readValue()
+            _vloc = self.readValue(db)
         if db.version >= DBVersions.DBV_Threaded:
             _threaded = self.readInt()
         # else
@@ -405,20 +416,20 @@ class Reader:
                 self.parse_error(f"Bad language version header {langver}")
 
         code = self.readCode()
-        rt = self.readRTEnv()
+        rt = self.readRTEnv(db)
         stackheader = self.readString()
         stackheaderMatch = stackheaderRe.match(stackheader)
         for _ in range(int(stackheaderMatch.group("slots"))):
-            _s = self.readValue()
+            _s = self.readValue(db)
         self.read_activation_as_pi(db)
-        _temp = self.readValue()
+        _temp = self.readValue(db)
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
             self.parse_error("READ_ACTIV: bad pc")
         if int(pcMatch.group("bi_func")):
             func_name = self.readString()
 
-    def readRTEnv(self) -> dict[str, Any]:
+    def readRTEnv(self, db: MooDatabase) -> dict[str, Any]:
         varCountLine = self.readString()
         varCountMatch = varCountRe.match(varCountLine)
         if not varCountMatch:
@@ -428,7 +439,7 @@ class Reader:
         rtEnv = {}
         for _ in range(varCount):
             name = self.readString()
-            value = self.readValue()
+            value = self.readValue(db)
             rtEnv[name] = value
         return rtEnv
 
@@ -454,7 +465,7 @@ class Reader:
             0, id, startTime
         )  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
         if val := taskMatch.group("value"):
-            task.value = self.readValue(int(val))
+            task.value = self.readValue(db, known_type=int(val))
         vm = self.readVM(db)
         db.queuedTasks.append(task)
 
@@ -508,7 +519,7 @@ class Reader:
 
     def readVM(self, db: MooDatabase):
         if db.version >= DBVersions.DBV_TaskLocal:
-            local = self.readValue()
+            local = self.readValue(db)
         else:
             local = {}
         header = self.readString()

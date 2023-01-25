@@ -75,3 +75,4 @@ class MooDatabase:
     players: list[int]
     objects: dict[int, MooObject]
     queuedTasks: list[QueuedTask]
+    waifs: dict[int, WAIF] = attrs.field(factory=dict)
