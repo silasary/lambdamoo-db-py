@@ -61,6 +61,12 @@ class Activation:
 
 
 @attrs.define()
+class VM:
+    locals: dict
+    stack: list[Activation | None]
+
+
+@attrs.define()
 class QueuedTask:
     firstLineno: int
     id: int
@@ -80,7 +86,7 @@ class SuspendedTask:
     st: int
 
     value: Any = attrs.field(init=False, default=None)
-    vm: Any = attrs.field(init=False, default=None)
+    vm: VM = attrs.field(init=False, default=None)
 
 
 @attrs.define(init=False)

@@ -2,6 +2,7 @@ from io import TextIOWrapper
 import re
 from typing import Any, NoReturn, Optional
 from lambdamoo_db.database import (
+    VM,
     ObjNum,
     Waif,
     Activation,
@@ -433,13 +434,14 @@ class Reader:
         stackheaderMatch = stackheaderRe.match(stackheader)
         for _ in range(int(stackheaderMatch.group("slots"))):
             _s = self.readValue(db)
-        self.read_activation_as_pi(db)
+        activation = self.read_activation_as_pi(db)
         _temp = self.readValue(db)
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
             self.parse_error("READ_ACTIV: bad pc")
         if int(pcMatch.group("bi_func")):
             func_name = self.readString()
+        return activation
 
     def readRTEnv(self, db: MooDatabase) -> dict[str, Any]:
         varCountLine = self.readString()
@@ -502,7 +504,7 @@ class Reader:
         # Shrug
         return None
 
-    def readVM(self, db: MooDatabase) -> list[Activation]:
+    def readVM(self, db: MooDatabase) -> VM:
         if db.version >= DBVersions.DBV_TaskLocal:
             local = self.readValue(db)
         else:
@@ -515,4 +517,4 @@ class Reader:
         stack = []
         for _ in range(top + 1):
             stack.append(self.read_activation(db))
-        return stack
+        return VM(local, stack)
