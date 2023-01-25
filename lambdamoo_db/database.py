@@ -34,9 +34,15 @@ class MooObject:
 
 
 @attrs.define()
-class WAIF:
+class Waif:
     waif_class: int
     owner: int
+    props: list[Any]
+
+
+@attrs.define()
+class WaifReference:
+    index: int
 
 
 @attrs.define(init=False)
@@ -58,9 +64,19 @@ class QueuedTask:
 
     value: Any = attrs.field(init=False, default=None)
 
-    activation: Activation = attrs.field(init=False)
+    activation: Activation | None = attrs.field(init=False)
     rtEnv: dict[str, Any] = attrs.field(init=False)
     code: list[str] = attrs.field(init=False, factory=list)
+
+
+@attrs.define()
+class SuspendedTask:
+    firstLineno: int
+    id: int
+    st: int
+
+    value: Any = attrs.field(init=False, default=None)
+    vm: Any = attrs.field(init=False, default=None)
 
 
 @attrs.define(init=False)
@@ -75,4 +91,5 @@ class MooDatabase:
     players: list[int]
     objects: dict[int, MooObject]
     queuedTasks: list[QueuedTask]
-    waifs: dict[int, WAIF] = attrs.field(factory=dict)
+    suspendedTasks: list[SuspendedTask]
+    waifs: dict[int, Waif]

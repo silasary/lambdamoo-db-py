@@ -2,19 +2,21 @@ from io import TextIOWrapper
 import re
 from typing import Any, NoReturn, Optional
 from lambdamoo_db.database import (
-    WAIF,
+    Waif,
     Activation,
     MooDatabase,
     MooObject,
     Property,
     QueuedTask,
+    SuspendedTask,
     Verb,
+    WaifReference,
 )
 from lambdamoo_db.enums import DBVersions, MooTypes
 
 
 def load(filename: str) -> MooDatabase:
-    with open(filename, "r", encoding='latin-1') as f:
+    with open(filename, "r", encoding="latin-1") as f:
         r = Reader(f, filename)
         return r.parse()
 
@@ -173,21 +175,23 @@ class Reader:
     def readWaif(self, db: MooDatabase):
         #  waif.cc:950 read_waif()
         header = waifHeaderRe.match(self.readString())
+        index = int(header.group("index"))
         if header.group("flag") == "r":
             # Reference
-            return db.waifs[int(header.group("index"))]
+            _terminator = self.readString()
+            return WaifReference(index)
 
         _class = self.readObjnum()
         owner = self.readObjnum()
-        new = WAIF(_class, owner)
+        props = []
+        new = Waif(_class, owner, props)
         propdefs_length = self.readInt()
 
-        db.waifs[int(header.group("index"))] = new
-        props = []
-        while ((cur := self.readInt()) < 3 * 32 and cur > -1):
+        db.waifs[index] = new
+        while (cur := self.readInt()) < 3 * 32 and cur > -1:
             props.append(self.readValue(db))
         _terminator = self.readString()
-        return new
+        return WaifReference(index)
 
     def readObject_v4(self, db: MooDatabase) -> MooObject | None:
         objNumber = self.readString()
@@ -449,6 +453,7 @@ class Reader:
         if not suspendedMatch:
             self.parse_error("Bad suspended tasks header")
 
+        db.suspendedTasks = []
         count = int(suspendedMatch.group("count"))
         for _ in range(count):
             self.readSuspendedTask(db)
@@ -461,13 +466,13 @@ class Reader:
 
         id = int(taskMatch.group("id"))
         startTime = int(taskMatch.group("startTime"))
-        task = QueuedTask(
+        task = SuspendedTask(
             0, id, startTime
         )  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
         if val := taskMatch.group("value"):
             task.value = self.readValue(db, known_type=int(val))
-        vm = self.readVM(db)
-        db.queuedTasks.append(task)
+        task.vm = self.readVM(db)
+        db.suspendedTasks.append(task)
 
     def readInterruptedTasks(self, db: MooDatabase):
         valueLine = self.readString()
@@ -530,3 +535,4 @@ class Reader:
         stack = []
         for _ in range(top + 1):
             stack.append(self.read_activation(db))
+        return stack
