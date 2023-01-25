@@ -2,6 +2,10 @@ from typing import Any
 import attrs
 
 
+class ObjNum(int):
+    pass
+
+
 @attrs.define()
 class Verb:
     name: str

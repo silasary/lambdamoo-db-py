@@ -2,6 +2,7 @@ from io import TextIOWrapper
 import re
 from typing import Any, NoReturn, Optional
 from lambdamoo_db.database import (
+    ObjNum,
     Waif,
     Activation,
     MooDatabase,
@@ -151,8 +152,8 @@ class Reader:
     def readFloat(self) -> float:
         return float(self.readString())
 
-    def readObjnum(self) -> int:
-        return self.readInt()
+    def readObjnum(self) -> ObjNum:
+        return ObjNum(self.readString())
 
     def readBool(self) -> bool:
         return bool(self.readInt())

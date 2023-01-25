@@ -1,4 +1,4 @@
-import json
+from lambdamoo_db import exporter
 from lambdamoo_db.reader import load
 import cattrs
 
@@ -11,7 +11,7 @@ def test_lambda() -> None:
     assert db.total_verbs == 1727
 
     with open("LambdaCore-latest.json", "w") as f:
-        json.dump(cattrs.unstructure(db), f, indent=2)
+        exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
 
 
 def test_toast() -> None:
@@ -20,4 +20,4 @@ def test_toast() -> None:
     assert db.version == 17
 
     with open("toastcore.json", "w") as f:
-        json.dump(cattrs.unstructure(db), f, indent=2)
+        exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
