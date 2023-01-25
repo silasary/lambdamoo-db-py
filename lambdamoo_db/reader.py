@@ -94,6 +94,8 @@ class Reader:
         self.readConnections()
         db.total_objects = self.readInt()
         self.readObjects(db)
+        if db.version >= DBVersions.DBV_Anon:
+            self.readAnonObjects(db)
         db.total_verbs = self.readInt()
         self.readVerbs(db)
 
@@ -295,6 +297,11 @@ class Reader:
         for _ in range(db.total_players):
             db.players.append(self.readObjnum())
         assert db.total_players == len(db.players)
+
+    def readAnonObjects(self, db: MooDatabase) -> None:
+        num_anon = self.readInt()
+        if num_anon > 0:
+            self.parse_error("Anonymous Objects not implemented yet")
 
     def readObjects(self, db: MooDatabase) -> None:
         db.objects = {}
