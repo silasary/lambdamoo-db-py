@@ -64,7 +64,10 @@ class Reader:
         db = MooDatabase()
         db.waifs = {}
         db.versionstring = self.readString()
-        db.version = int(versionRe.match(db.versionstring).group("version"))
+        version = versionRe.match(db.versionstring)
+        if not version:
+            self.parse_error("Invalid version string")
+        db.version = int(version.group("version"))
         match db.version:
             case 4:
                 self.parse_v4(db)
@@ -179,6 +182,8 @@ class Reader:
     def readWaif(self, db: MooDatabase):
         #  waif.cc:950 read_waif()
         header = waifHeaderRe.match(self.readString())
+        if not header:
+            self.parse_error(f"Invalid waif header")
         index = int(header.group("index"))
         if header.group("flag") == "r":
             # Reference
@@ -432,6 +437,8 @@ class Reader:
         rt = self.readRTEnv(db)
         stackheader = self.readString()
         stackheaderMatch = stackheaderRe.match(stackheader)
+        if not stackheaderMatch:
+            self.parse_error("READ_ACTIV: bad stack header")
         for _ in range(int(stackheaderMatch.group("slots"))):
             _s = self.readValue(db)
         activation = self.read_activation_as_pi(db)
