@@ -37,7 +37,7 @@ suspendedTaskHeaderRe = re.compile(
     r"(?P<startTime>\d+) (?P<id>\d+)(?P<endchar>| (?P<value>\d+))$"
 )
 interruptedTaskCountRe = re.compile(r"(?P<count>\d+) interrupted tasks")
-interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) interrupted reading task")
+interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) (?P<status>[\w\W]+)")
 vmHeaderRe = re.compile(
     r"(?P<top>\d+) (?P<vector>-?\d+) (?P<funcId>\d+)(\n| (?P<maxStackframes>\d))"
 )
