@@ -1,6 +1,6 @@
 from io import TextIOWrapper
 import re
-from typing import Any, NoReturn, Optional
+from typing import Any, NoReturn
 from lambdamoo_db.database import (
     VM,
     ObjNum,
