@@ -79,8 +79,13 @@ def to_moo_files(db: MooDatabase, path: str, corrify: bool) -> None:
         id = name(i)
         os.mkdir(os.path.join(path, id))
         with open(os.path.join(path, id, "info.json"), "w") as f:
-            info = {"name": o.name, "parent": name(o.parent), "owner": o.owner}
-            json.dump(info, f)
+            info = {
+                "name": o.name,
+                "parent": name(o.parent),
+                "owner": o.owner,
+                "location": o.location,
+            }
+            json.dump(info, f, indent=2)
         for i, v in enumerate(o.verbs):
             filename = (sanitize(v.name) or str(i)).split(" ", 1)[0] + ".moo"
             with open(os.path.join(path, id, filename), "w") as f:
