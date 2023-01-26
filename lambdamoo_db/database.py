@@ -31,8 +31,10 @@ class MooObject:
     flags: int
     owner: int
     location: int
-    parent: int
-
+    parents: list[int] = attrs.field(init=False, factory=list)
+    children: list[int] = attrs.field(init=False, factory=list)
+    last_move: int = attrs.field(init=False, default=-1)
+    contents: list[int] = attrs.field(init=False, factory=list)
     verbs: list[Verb] = attrs.field(init=False, factory=list)
     properties: list[Property] = attrs.field(init=False, factory=list)
 
@@ -84,7 +86,6 @@ class SuspendedTask:
     firstLineno: int
     id: int
     st: int
-
     value: Any = attrs.field(init=False, default=None)
     vm: VM = attrs.field(init=False, default=None)
 

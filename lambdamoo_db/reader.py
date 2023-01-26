@@ -221,7 +221,7 @@ class Reader:
         parent = self.readObjnum()
         firstChild = self.readInt()
         sibling = self.readInt()
-        obj = MooObject(oid, name, flags, owner, location, parent)
+        obj = MooObject(id=oid, name=name, flags=flags, owner=owner, location=location, parents=parent)
         numVerbs = self.readInt()
         for _ in range(numVerbs):
             self.readVerbMetadata(obj)
