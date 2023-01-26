@@ -14,7 +14,10 @@ def converter(x: Any) -> Any:
 
 
 def sanitize(filename: str) -> str:
-    return re.sub(r"[\*\?\|:;\/\\<>]", "", filename)
+    name = re.sub(r"[\*\?\|:;\/\\<>]", "", filename)
+    if name in ["CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
+        return ""
+    return name
 
 
 def to_json(db: MooDatabase) -> str:
