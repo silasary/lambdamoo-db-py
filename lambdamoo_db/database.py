@@ -85,6 +85,7 @@ class MooDatabase:
     total_verbs: int
     total_players: int
     players: list[int]
+    clocks: list = attrs.field(init=False, factory=list)
     objects: dict[int, MooObject]
     queuedTasks: list[QueuedTask]
     suspendedTasks: list[SuspendedTask]

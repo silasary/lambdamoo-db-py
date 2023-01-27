@@ -3,7 +3,7 @@ from typing import Any
 from attrs import define
 
 from . import templates
-from .database import MooDatabase, MooObject, ObjNum, Property, Verb
+from .database import MooDatabase, MooObject, ObjNum, Property, SuspendedTask, Verb
 
 
 @define
@@ -30,19 +30,14 @@ class Writer:
         return self.writeInt(1 if b else 0)
 
     def writeList(self, l: list[Any]) -> None:
-        self.writeInt(len(l))
-        self.write("\n")
-        for v in l:
-            self.writeValue(v)
-            self.write("\n")
+        return self.writeCollection(l, None, self.writeValue)
 
     def writeMap(self, m: dict[str, Any]) -> None:
-        self.writeInt(len(m))
-        self.write("\n")
-        for k, v in m.items():
-            self.writeString(k)
-            self.writeValue(v)
-            self.write("\n")
+        def writeMapItem(item):
+            key, value = item
+            self.writeString(key)
+            self.writeValue(value)
+        return self.writeCollection(m.items(), None, writeMapItem)
 
     def writeValue(self, v: Any) -> None:
         value_type = type(v)
@@ -64,26 +59,27 @@ class Writer:
             raise Exception("Unknown value type")
 
     def writeDatabase(self) -> None:
-
         self.writeString(templates.version.format(version=self.db.version))
         self.writePlayers()
         self.writePending()
+        self.writeClocks()
+        self.writeTaskQueue()
+        self.writeSuspendedTasks()
+        self.writeInterruptedTasks()
+        self.writeConnections()
+        self.writeObjects()
 
     def writePlayers(self) -> None:
-        self.writeInt(self.db.total_players)
-        self.write("\n")
-        for p in self.db.players:
-            self.writeInt(p)
-            self.write("\n")
+        self.writeCollection(self.db.players, None, self.writeString)
 
     def writePending(self) -> None:
         pass
 
     def writeObjects(self) -> None:
-        for obj_num, obj  in self.db.objects.items():
-            self.writeObject(obj_num, obj)
+        self.writeCollection(self.db.objects.values(), None, self.writeObject)
 
-    def writeObject(self, obj_num: int, obj: MooObject) -> None:
+    def writeObject(self, obj: MooObject) -> None:
+        obj_num = obj.id
         self.writeString(f"#{obj_num}")
         self.writeString(obj.name)
         self.writeInt(obj.flags)
@@ -106,16 +102,13 @@ class Writer:
         self.write("\n")
 
     def write_properties(self, obj: MooObject) -> None:
-        self.writeInt(len(obj.properties))
-        self.write("\n")
-        for prop in obj.properties:
-            self.writeString(prop.propertyName)
-        self.writeInt(len(obj.properties))
-        self.write("\n")
-        for prop in obj.properties:
-            self.writeValue(prop.value)
-            self.writeInt(prop.owner)
-            self.writeInt(prop.perms)
+        self.writeCollection(obj.properties, None, lambda prop: self.writeString(prop.propertyName))
+        self.writeCollection(obj.properties, None, lambda prop: self.writeProperty(prop))
+
+    def writeProperty(self, prop):
+        self.writeValue(prop.value)
+        self.writeInt(prop.owner)
+        self.writeInt(prop.perms)
 
     def writeVerbs  (self) -> None:
         for verb in self.db.all_verbs():
@@ -130,8 +123,33 @@ class Writer:
         self.writeCode(verb.code)
 
     def writeCode(self, code: list) -> None:
-        self.writeInt(len(code))
-        self.write("\n")
         for line in code:
             self.writeString(line)
         self.writeString(".")
+
+    def writeCollection(self, collection, template=None, writer=None):
+        if writer is None:
+            writer = self.writeString
+        if template is None:
+            self.writeInt(len(collection))
+            self.write("\n")
+        else:
+            self.writeString(template.format(count=len(collection)))
+        for item in collection:
+            writer(item)
+
+    def writeClocks(self):
+        self.writeCollection(self.db.clocks, templates.clock_count)
+
+    def writeTaskQueue(self):
+        self.writeCollection(self.db.queuedTasks, templates.task_count, self.writeQueuedTask)
+
+    def writeQueuedTask(self, task):
+        self.writeInt(task.time)
+        self.writeString(task.verb)
+        self.writeValue(task.object)
+        self.writeValue(task.player)
+        self.writeValue(task.arglist)
+
+    def writeSuspendedTasks(self):
+        self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
