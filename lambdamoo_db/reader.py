@@ -87,7 +87,7 @@ class Reader:
         self.readPlayers(db)
         self.readObjects(db)
         self.readVerbs(db)
-        self.readClocks()
+        self.readClocks(db)
         self.readTaskQueue(db)
         self.readSuspendedTasks(db)
         self.readConnections()
@@ -95,7 +95,7 @@ class Reader:
     def parse_v17(self, db: MooDatabase) -> None:
         self.readPlayers(db)
         self.readPending(db)
-        self.readClocks()
+        self.readClocks(db)
         self.readTaskQueue(db)
         self.readSuspendedTasks(db)
         self.readInterruptedTasks(db)
@@ -361,18 +361,19 @@ class Reader:
         for _ in range(finalizationCount):
             self.readValue(db)
 
-    def readClocks(self) -> None:
+    def readClocks(self, db: MooDatabase) -> None:
         clockLine = self.readString()
         clockMatch = clockCountRe.match(clockLine)
         if not clockMatch:
             self.parse_error("Could not find clock definitions")
+        db.clocks = []
         numClocks = int(clockMatch.group("count"))
         for _ in range(numClocks):
-            self.readClock()
+            self.readClock(db)
 
-    def readClock(self) -> None:
+    def readClock(self, db: MooDatabase) -> None:
         """Obsolete"""
-        self.readString()
+        db.clocks.append(self.readString())
 
     def readTaskQueue(self, db: MooDatabase) -> None:
         queuedTasksLine = self.readString()
