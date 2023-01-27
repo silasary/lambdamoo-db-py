@@ -1,7 +1,8 @@
 from io import TextIOWrapper
 import re
-from typing import Any, NoReturn
-from lambdamoo_db.database import (
+import parse
+from typing import Any, NoReturn, Pattern, Match
+from .database import (
     VM,
     ObjNum,
     Waif,
@@ -14,29 +15,32 @@ from lambdamoo_db.database import (
     Verb,
     WaifReference,
 )
-from lambdamoo_db.enums import DBVersions, MooTypes
-
+from .enums import DBVersions, MooTypes
+from . import templates
 
 def load(filename: str) -> MooDatabase:
     with open(filename, "r", encoding="latin-1") as f:
         r = Reader(f, filename)
         return r.parse()
 
+def compile(template: str) -> Pattern[str]:
+    compiled = parse.compile(template)
+    if compiled._match_re is None:
+        raise Exception(f"Failed to compile template: {template}")
+    return compiled._match_re
 
-versionRe = re.compile(r"\*\* LambdaMOO Database, Format Version (?P<version>\d+) \*\*")
-varCountRe = re.compile(r"(?P<count>\d+) variables")
-clockCountRe = re.compile(r"(?P<count>\d+) clocks")
-taskCountRe = re.compile(r"(?P<count>\d+) queued tasks")
-taskHeaderRe = re.compile(r"\d+ (\d+) (\d+) (\d+)")
-activationHeaderRe = re.compile(
-    r"-?(\d+) -?\d+ -?\d+ -?(\d+) -?\d+ -?(\d+) -?(\d+) -?\d+ -?(\d+)"
-)
-pendingValueRe = re.compile(r"(?P<count>\d+) values pending finalization")
-suspendedTaskCountRe = re.compile(r"(?P<count>\d+) suspended tasks")
+versionRe = compile(templates.version)
+varCountRe = compile(templates.var_count)
+clockCountRe = compile(templates.clock_count)
+taskCountRe = compile(templates.task_count)
+taskHeaderRe = compile(templates.task_header)
+activationHeaderRe = compile(templates.activation_header)
+pendingValueRe = compile(templates.pending_values_count)
+suspendedTaskCountRe = compile(templates.suspended_task_count)
 suspendedTaskHeaderRe = re.compile(
     r"(?P<startTime>\d+) (?P<id>\d+)(?P<endchar>| (?P<value>\d+))$"
 )
-interruptedTaskCountRe = re.compile(r"(?P<count>\d+) interrupted tasks")
+interruptedTaskCountRe = compile(templates.interrupted_task_count)
 interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) (?P<status>[\w\W]+)")
 vmHeaderRe = re.compile(
     r"(?P<top>\d+) (?P<vector>-?\d+) (?P<funcId>\d+)(\n| (?P<maxStackframes>\d))"
@@ -44,11 +48,10 @@ vmHeaderRe = re.compile(
 connectionCountRe = re.compile(
     r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)"
 )
-langverRe = re.compile(r"language version (?P<version>\d+)")
-stackheaderRe = re.compile(r"(?P<slots>\d+) rt_stack slots in use")
-
-pcRe = re.compile(r"(?P<pc>\d+) (?P<bi_func>\d+) (?P<error>\d+)")
-waifHeaderRe = re.compile(r"(?P<flag>[cr]) (?P<index>\d+)")
+langverRe = compile(templates.langver)
+stackheaderRe = compile(templates.stack_header)
+pcRe = compile(templates.pc)
+waifHeaderRe = compile(templates.waif_header)
 
 
 class Reader:
@@ -221,7 +224,7 @@ class Reader:
         parent = self.readObjnum()
         firstChild = self.readInt()
         sibling = self.readInt()
-        obj = MooObject(id=oid, name=name, flags=flags, owner=owner, location=location, parents=parent)
+        obj = MooObject(id=oid, name=name, flags=flags, owner=owner, location=location, parents=[parent])
         numVerbs = self.readInt()
         for _ in range(numVerbs):
             self.readVerbMetadata(obj)
@@ -247,6 +250,8 @@ class Reader:
 
         contents = self.readValue(db)
         parents = self.readValue(db)
+        if not isinstance(parents, list):
+            parents = [parents]
         children = self.readValue(db)
         obj = MooObject(oid, name, flags, owner, location, parents)
         numVerbs = self.readInt()
@@ -342,7 +347,7 @@ class Reader:
             value = self.readValue(db)
             owner = self.readObjnum()
             perms = self.readInt()
-            property = Property(propertyName, value, owner, perms)
+            property = Property(propertyName or '', value, owner, perms)
             obj.properties.append(property)
 
     def readPending(self, db: MooDatabase) -> None:

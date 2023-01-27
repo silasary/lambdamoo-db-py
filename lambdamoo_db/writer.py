@@ -1,6 +1,8 @@
 from io import TextIOWrapper
 from typing import Any
 from attrs import define
+
+from . import templates
 from .database import MooDatabase, MooObject, ObjNum, Property, Verb
 
 
@@ -62,8 +64,8 @@ class Writer:
             raise Exception("Unknown value type")
 
     def writeDatabase(self) -> None:
-        version_str = "** LambdaMOO Database, Format Version 17 **"
-        self.writeString(version_str)
+
+        self.writeString(templates.version.format(version=self.db.version))
         self.writePlayers()
         self.writePending()
 

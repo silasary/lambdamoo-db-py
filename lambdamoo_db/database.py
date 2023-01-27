@@ -31,7 +31,7 @@ class MooObject:
     flags: int
     owner: int
     location: int
-    parents: list[int] = attrs.field(init=False, factory=list)
+    parents: list[int] = attrs.field(factory=list)
     children: list[int] = attrs.field(init=False, factory=list)
     last_move: int = attrs.field(init=False, default=-1)
     contents: list[int] = attrs.field(init=False, factory=list)

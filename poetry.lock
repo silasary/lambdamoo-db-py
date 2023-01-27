@@ -102,6 +102,17 @@ files = [
 ]
 
 [[package]]
+name = "parse"
+version = "1.19.0"
+description = "parse() is the opposite of format()"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "parse-1.19.0.tar.gz", hash = "sha256:9ff82852bcb65d139813e2a5197627a94966245c897796760a3a2a8eb66f020b"},
+]
+
+[[package]]
 name = "pluggy"
 version = "1.0.0"
 description = "plugin and hook calling mechanisms for python"
@@ -156,4 +167,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "6943d5603ca8d3f416961ddfee0715d851acc47464cd9067684af29bd621695c"
+content-hash = "2307cdd9a5071eef6cfcdcadea274d56714e0ff0307ba4ac04d34f2dbeb77780"
