@@ -30,14 +30,14 @@ class Writer:
         return self.writeInt(1 if b else 0)
 
     def writeList(self, l: list[Any]) -> None:
-        return self.writeCollection(l, None, self.writeValue)
+        return self.writeCollection(l, writer=self.writeValue)
 
     def writeMap(self, m: dict[str, Any]) -> None:
         def writeMapItem(item):
             key, value = item
             self.writeString(key)
             self.writeValue(value)
-        return self.writeCollection(m.items(), None, writeMapItem)
+        return self.writeCollection(m.items(), writer=writeMapItem)
 
     def writeValue(self, v: Any) -> None:
         value_type = type(v)
@@ -70,13 +70,13 @@ class Writer:
         self.writeObjects()
 
     def writePlayers(self) -> None:
-        self.writeCollection(self.db.players, None, self.writeString)
+        self.writeCollection(self.db.players, writer=self.writeString)
 
     def writePending(self) -> None:
         pass
 
     def writeObjects(self) -> None:
-        self.writeCollection(self.db.objects.values(), None, self.writeObject)
+        self.writeCollection(self.db.objects.values(), writer=self.writeObject)
 
     def writeObject(self, obj: MooObject) -> None:
         obj_num = obj.id
@@ -89,10 +89,8 @@ class Writer:
         self.writeValue(obj.contents)
         self.writeValue(obj.parents)
         self.writeValue(obj.children)
-        self.writeInt(len(obj.verbs))
         self.write("\n")
-        for verb in obj.verbs:
-            self.writeVerbMetadata(verb)
+        self.writeCollection(obj.verbs, writer=self.writeVerbMetadata)
 
     def writeVerbMetadata(self, verb: Verb) -> None:
         self.writeString(verb.name)
@@ -103,7 +101,7 @@ class Writer:
 
     def write_properties(self, obj: MooObject) -> None:
         self.writeCollection(obj.properties, None, lambda prop: self.writeString(prop.propertyName))
-        self.writeCollection(obj.properties, None, lambda prop: self.writeProperty(prop))
+        self.writeCollection(obj.properties, None, self.writeProperty)
 
     def writeProperty(self, prop):
         self.writeValue(prop.value)
