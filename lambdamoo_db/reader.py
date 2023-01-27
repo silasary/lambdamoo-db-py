@@ -293,6 +293,7 @@ class Reader:
         if not verb:
             self.parse_error(f"verb ${verbNumber} not found on object ${objNumber}")
 
+        verb.object = objNumber
         verb.code = code
 
     def readCode(self) -> list[str]:
@@ -331,7 +332,7 @@ class Reader:
         owner = self.readObjnum()
         perms = self.readInt()
         preps = self.readInt()
-        verb = Verb(name, owner, perms, preps)
+        verb = Verb(name, owner, perms, preps, -1)
         obj.verbs.append(verb)
 
     def readProperties(self, db: MooDatabase, obj: MooObject):

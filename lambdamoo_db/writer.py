@@ -80,8 +80,8 @@ class Writer:
         pass
 
     def writeObjects(self) -> None:
-       for obj_num, obj  in self.db.objects.items():
-        self.writeObject(obj_num, obj)
+        for obj_num, obj  in self.db.objects.items():
+            self.writeObject(obj_num, obj)
 
     def writeObject(self, obj_num: int, obj: MooObject) -> None:
         self.writeString(f"#{obj_num}")
@@ -116,3 +116,22 @@ class Writer:
             self.writeValue(prop.value)
             self.writeInt(prop.owner)
             self.writeInt(prop.perms)
+
+    def writeVerbs  (self) -> None:
+        for verb in self.db.all_verbs():
+            self.writeVerb(verb)
+
+    def writeVerb(self, verb: Verb) -> None:
+        objnum = verb.object
+        object = self.db.objects[objnum]
+        index = object.verbs.index(verb)
+        vloc = f"{objnum}:{index}"
+        self.writeString(vloc)
+        self.writeCode(verb.code)
+
+    def writeCode(self, code: list) -> None:
+        self.writeInt(len(code))
+        self.write("\n")
+        for line in code:
+            self.writeString(line)
+        self.writeString(".")
