@@ -59,7 +59,7 @@ class Writer:
             raise Exception("Unknown value type")
 
     def writeDatabase(self) -> None:
-        self.writeString(templates.version.format(version=self.db.version))
+        self.writeString(templates.version.format(version=17))
         self.writePlayers()
         self.writePending()
         self.writeClocks()
