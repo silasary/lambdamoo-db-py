@@ -37,14 +37,10 @@ taskHeaderRe = compile(templates.task_header)
 activationHeaderRe = compile(templates.activation_header)
 pendingValueRe = compile(templates.pending_values_count)
 suspendedTaskCountRe = compile(templates.suspended_task_count)
-suspendedTaskHeaderRe = re.compile(
-    r"(?P<startTime>\d+) (?P<id>\d+)(?P<endchar>| (?P<value>\d+))$"
-)
+suspendedTaskHeaderRe = compile(templates.suspended_task_header)
 interruptedTaskCountRe = compile(templates.interrupted_task_count)
 interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) (?P<status>[\w\W]+)")
-vmHeaderRe = re.compile(
-    r"(?P<top>\d+) (?P<vector>-?\d+) (?P<funcId>\d+)(\n| (?P<maxStackframes>\d))"
-)
+vmHeaderRe = compile(templates.vm_header)
 connectionCountRe = re.compile(
     r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)"
 )

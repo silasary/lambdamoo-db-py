@@ -1,9 +1,9 @@
 from io import TextIOWrapper
 from typing import Any
-from attrs import define
+from attrs import define, asdict
 
 from . import templates
-from .database import MooDatabase, MooObject, ObjNum, Property, SuspendedTask, Verb
+from .database import VM, MooDatabase, MooObject, ObjNum, Property, SuspendedTask, Verb
 
 
 @define
@@ -151,3 +151,11 @@ class Writer:
 
     def writeSuspendedTasks(self):
         self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
+
+    def writeSuspendedTask(self, task: SuspendedTask):
+        header = templates.suspended_task_header.format(asdict(task))
+        self.writeString(header)
+        self.writeVM(task.vm)
+
+    def writeVM(self, vm: VM):
+        self.writeValue(vm.locals)
