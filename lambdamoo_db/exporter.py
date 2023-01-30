@@ -84,6 +84,7 @@ def to_moo_files(db: MooDatabase, path: str, corrify: bool) -> None:
                 "parent": name(o.parent),
                 "owner": o.owner,
                 "location": o.location,
+                "verbs": [v.name for v in o.verbs],
             }
             json.dump(info, f, indent=2)
         for i, v in enumerate(o.verbs):
