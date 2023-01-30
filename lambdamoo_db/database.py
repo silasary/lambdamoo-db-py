@@ -1,8 +1,10 @@
 from typing import Any, Generator
 import attrs
 
+
 class ObjNum(int):
     pass
+
 
 @attrs.define()
 class Verb:
@@ -13,12 +15,14 @@ class Verb:
     object: int
     code: list[str] = attrs.field(init=False, factory=list)
 
+
 @attrs.define()
 class Property:
     propertyName: str
     value: Any
     owner: int
     perms: int
+
 
 @attrs.define()
 class MooObject:
@@ -34,15 +38,24 @@ class MooObject:
     verbs: list[Verb] = attrs.field(init=False, factory=list)
     properties: list[Property] = attrs.field(init=False, factory=list)
 
+    @property
+    def parent(self) -> int:
+        if len(self.parents) > 1:
+            raise Exception("Object has multiple parents")
+        return self.parents[0]
+
+
 @attrs.define()
 class Waif:
     waif_class: int
     owner: int
     props: list[Any]
 
+
 @attrs.define()
 class WaifReference:
     index: int
+
 
 @attrs.define(init=False)
 class Activation:
@@ -54,10 +67,12 @@ class Activation:
     verb: str
     verbname: str
 
+
 @attrs.define()
 class VM:
     locals: dict
     stack: list[Activation | None]
+
 
 @attrs.define()
 class QueuedTask:
@@ -69,6 +84,7 @@ class QueuedTask:
     rtEnv: dict[str, Any] = attrs.field(init=False)
     code: list[str] = attrs.field(init=False, factory=list)
 
+
 @attrs.define()
 class SuspendedTask:
     firstLineno: int
@@ -76,6 +92,7 @@ class SuspendedTask:
     st: int
     value: Any = attrs.field(init=False, default=None)
     vm: VM = attrs.field(init=False, default=None)
+
 
 @attrs.define(init=False)
 class MooDatabase:
