@@ -79,9 +79,10 @@ def to_moo_files(db: MooDatabase, path: str, corrify: bool) -> None:
         id = name(i)
         os.mkdir(os.path.join(path, id))
         with open(os.path.join(path, id, "info.json"), "w") as f:
+
             info = {
                 "name": o.name,
-                "parent": name(o.parent),
+                "parent": name(o.parents),
                 "owner": o.owner,
                 "location": o.location,
                 "verbs": [v.name for v in o.verbs],
