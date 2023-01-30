@@ -320,6 +320,23 @@ class Reader:
             if not obj:
                 continue
             db.objects[obj.id] = obj
+        for o in db.objects.values():
+            self.process_propnames(db, o)
+
+    def process_propnames(self, db: MooDatabase, obj: MooObject) -> None:
+        names = []
+        parent = obj
+        while parent is not None:
+            names.extend(
+                p.propertyName for p in parent.properties if p.propertyName is not None
+            )
+            parent = db.objects.get(parent.parent)
+        for p in obj.properties:
+            n = names.pop(0)
+            if not p.propertyName:
+                p.propertyName = n
+            elif n != p.propertyName:
+                self.parse_error(f"property name mismatch: {n} != {p.propertyName}")
 
     def readVerbMetadata(self, obj: MooObject) -> None:
         name = self.readString()

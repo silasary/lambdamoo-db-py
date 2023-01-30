@@ -87,6 +87,9 @@ def to_moo_files(db: MooDatabase, path: str, corrify: bool) -> None:
                 "verbs": [v.name for v in o.verbs],
             }
             json.dump(info, f, indent=2)
+        with open(os.path.join(path, id, "props.json"), "w") as f:
+            json.dump(cattrs.unstructure(o.properties), f, indent=2, default=converter)
+
         for i, v in enumerate(o.verbs):
             filename = (sanitize(v.name) or str(i)).split(" ", 1)[0] + ".moo"
             with open(os.path.join(path, id, filename), "w") as f:
