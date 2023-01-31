@@ -6,6 +6,10 @@ class ObjNum(int):
     pass
 
 
+class Anon(int):
+    pass
+
+
 @attrs.define()
 class Verb:
     name: str
@@ -37,6 +41,7 @@ class MooObject:
     contents: list[int] = attrs.field(init=False, factory=list)
     verbs: list[Verb] = attrs.field(init=False, factory=list)
     properties: list[Property] = attrs.field(init=False, factory=list)
+    anon: bool = attrs.field(default=False)
 
     @property
     def parent(self) -> int:

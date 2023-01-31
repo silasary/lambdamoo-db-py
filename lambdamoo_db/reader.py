@@ -1,9 +1,10 @@
 from io import TextIOWrapper
 import re
 import parse
-from typing import Any, NoReturn, Pattern, Match
+from typing import Any, NoReturn, Pattern
 from .database import (
     VM,
+    Anon,
     ObjNum,
     Waif,
     Activation,
@@ -44,9 +45,7 @@ suspendedTaskHeaderRe = compile(templates.suspended_task_header)
 interruptedTaskCountRe = compile(templates.interrupted_task_count)
 interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) (?P<status>[\w\W]+)")
 vmHeaderRe = compile(templates.vm_header)
-connectionCountRe = re.compile(
-    r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)"
-)
+connectionCountRe = re.compile(r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)")
 langverRe = compile(templates.langver)
 stackheaderRe = compile(templates.stack_header)
 pcRe = compile(templates.pc)
@@ -117,7 +116,7 @@ class Reader:
             case MooTypes.OBJ:
                 return self.readObjnum()
             case MooTypes.ANON:
-                return self.readAnon()
+                return self.readAnon(db)
             case MooTypes.INT:
                 return self.readInt()
             case MooTypes.FLOAT:
@@ -267,8 +266,12 @@ class Reader:
         self.readProperties(db, obj)
         return obj
 
-    def readAnon(self) -> None:
-        self.parse_error("Anons are not Implemented")
+    def readAnon(self, db: MooDatabase) -> None:
+        oid = self.readInt()
+        if oid == -1:
+            self.parse_error("Not sure what to do with a -1 anon yet")
+        else:
+            return Anon(oid)
 
     def readConnections(self) -> None:
         header = self.readString()
@@ -323,7 +326,9 @@ class Reader:
     def readAnonObjects(self, db: MooDatabase) -> None:
         num_anon = self.readInt()
         if num_anon > 0:
-            self.parse_error("Anonymous Objects not implemented yet")
+            obj = self.readObject_ng(db)
+            obj.anon = True
+            db.objects[obj.id] = obj
 
     def readObjects(self, db: MooDatabase) -> None:
         db.objects = {}
@@ -342,9 +347,7 @@ class Reader:
         names = []
         parent = obj
         while parent is not None:
-            names.extend(
-                p.propertyName for p in parent.properties if p.propertyName is not None
-            )
+            names.extend(p.propertyName for p in parent.properties if p.propertyName is not None)
             parent = db.objects.get(parent.parent)
         for p in obj.properties:
             n = names.pop(0)
@@ -516,9 +519,7 @@ class Reader:
 
         id = int(taskMatch.group("id"))
         startTime = int(taskMatch.group("startTime"))
-        task = SuspendedTask(
-            0, id, startTime
-        )  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
+        task = SuspendedTask(0, id, startTime)  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
         if val := taskMatch.group("value"):
             task.value = self.readValue(db, known_type=int(val))
         task.vm = self.readVM(db)

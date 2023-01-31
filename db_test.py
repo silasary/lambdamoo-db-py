@@ -28,3 +28,6 @@ def test_toast2() -> None:
     assert db is not None
     assert len(db.suspendedTasks) > 0
     assert len(db.waifs) > 0
+
+    with open("toast2.json", "w") as f:
+        exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
