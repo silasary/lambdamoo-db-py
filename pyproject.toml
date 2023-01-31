@@ -23,3 +23,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 moodb2flat = "lambdamoo_db.cli:moodb2flat"
+
+[tool.black]
+line-length = 160
