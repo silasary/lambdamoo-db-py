@@ -18,16 +18,19 @@ from .database import (
 from .enums import DBVersions, MooTypes
 from . import templates
 
+
 def load(filename: str) -> MooDatabase:
     with open(filename, "r", encoding="latin-1") as f:
         r = Reader(f, filename)
         return r.parse()
+
 
 def compile(template: str) -> Pattern[str]:
     compiled = parse.compile(template)
     if compiled._match_re is None:
         raise Exception(f"Failed to compile template: {template}")
     return compiled._match_re
+
 
 versionRe = compile(templates.version)
 varCountRe = compile(templates.var_count)
@@ -220,7 +223,14 @@ class Reader:
         parent = self.readObjnum()
         firstChild = self.readInt()
         sibling = self.readInt()
-        obj = MooObject(id=oid, name=name, flags=flags, owner=owner, location=location, parents=[parent])
+        obj = MooObject(
+            id=oid,
+            name=name,
+            flags=flags,
+            owner=owner,
+            location=location,
+            parents=[parent],
+        )
         numVerbs = self.readInt()
         for _ in range(numVerbs):
             self.readVerbMetadata(obj)
@@ -256,6 +266,9 @@ class Reader:
 
         self.readProperties(db, obj)
         return obj
+
+    def readAnon(self) -> None:
+        self.parse_error("Anons are not Implemented")
 
     def readConnections(self) -> None:
         header = self.readString()
@@ -361,7 +374,7 @@ class Reader:
             value = self.readValue(db)
             owner = self.readObjnum()
             perms = self.readInt()
-            property = Property(propertyName or '', value, owner, perms)
+            property = Property(propertyName or "", value, owner, perms)
             obj.properties.append(property)
 
     def readPending(self, db: MooDatabase) -> None:

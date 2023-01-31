@@ -21,3 +21,10 @@ def test_toast() -> None:
 
     with open("toastcore.json", "w") as f:
         exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
+
+
+def test_toast2() -> None:
+    db = load("toast2.db")
+    assert db is not None
+    assert len(db.suspendedTasks) > 0
+    assert len(db.waifs) > 0
