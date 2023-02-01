@@ -377,7 +377,7 @@ class Reader:
             value = self.readValue(db)
             owner = self.readObjnum()
             perms = self.readInt()
-            property = Property(propertyName or "", value, owner, perms)
+            property = Property(propertyName, value, owner, perms)
             obj.properties.append(property)
 
     def readPending(self, db: MooDatabase) -> None:
