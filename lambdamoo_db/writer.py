@@ -2,8 +2,10 @@ from io import TextIOWrapper
 from typing import Any
 from attrs import define, asdict
 
+from lambdamoo_db.enums import MooTypes
+
 from . import templates
-from .database import VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, Verb
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, Verb
 
 
 @define
@@ -65,7 +67,7 @@ class Writer:
         self.writeClocks()
         self.writeTaskQueue()
         self.writeSuspendedTasks()
-        #self.writeInterruptedTasks()
+        # self.writeInterruptedTasks()
         # self.writeConnections()
         self.writeObjects()
         self.writeVerbs()
@@ -149,20 +151,18 @@ class Writer:
         taskHeader = templates.task_header.format(**asdict(task))
         self.writeString(taskHeader)
         self.writeActivation(task.activation)
+        self.writeRtEnv(task.rtEnv)
+        self.writeCode(task.code)
 
     def writeActivationAsPI(self, activation: Activation):
-        self.writeInt(0)
+        self.writeValue(activation.unused1)
         self.writeValue(activation.this)
+        self.writeValue(activation.unused1)
         self.writeValue(activation.threaded)
         self.writeValue(activation.vloc)
-        activationHeader = templates.activationHeader.format(
-            activation.this,
-            activation.player,
-            activation.programmer,
-            activation.vloc,
-            int(activation.debug)  # Convert bool to int
-        )
-        self.writeString(activationHeader)
+        self.write("\n")
+        activation_header = templates.activation_header.format(**asdict(activation))
+        self.writeString(activation_header)
         self.writeString("No")
         self.writeString("More")
         self.writeString("Parse")
@@ -173,7 +173,7 @@ class Writer:
     def writeActivation(self, activation):
         langver = templates.langver.format(version=17)
         self.writeString(langver)
-        self.writeCode(activation.code)
+        self.writeActivationAsPI(activation)
 
     def writeSuspendedTasks(self):
         self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
@@ -188,9 +188,15 @@ class Writer:
 
     def writeRtEnv(self, env: dict[str, Any]):
         header = templates.var_count.format(count=len(env))
+        self.writeString(header)
         for name, value in env.items():
             self.writeString(name)
-            self.writeValue(value)
+            moo_type = TYPE_MAPPING[type(value)]
+            self.writeInt(moo_type)
+            if (moo_type != MooTypes.NONE):
+                self.write("\n")
+                self.writeValue(value)
+            self.write("\n")
 
 
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
