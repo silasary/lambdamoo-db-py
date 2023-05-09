@@ -295,7 +295,7 @@ class Reader:
 
         sep = verbLocation.index(":")
         objNumber = int(verbLocation[1:sep])
-        verbNumber = int(verbLocation[sep + 1 :])
+        verbNumber = int(verbLocation[sep + 1:])
         code = self.readCode()
         obj = db.objects.get(objNumber)
         if not obj:
@@ -428,15 +428,16 @@ class Reader:
         headerMatch = taskHeaderRe.match(headerLine)
         if not headerMatch:
             self.parse_error("Could not find task header")
-
-        firstLineno = int(headerMatch[1])
-        st = int(headerMatch[2])
-        id = int(headerMatch[3])
+        unused = int(headerMatch[1])
+        firstLineno = int(headerMatch[2])
+        st = int(headerMatch[3])
+        id = int(headerMatch[4])
         task = QueuedTask(firstLineno, id, st)
         activation = self.read_activation_as_pi(db)
         task.activation = activation
         task.rtEnv = self.readRTEnv(db)
         task.code = self.readCode()
+        task.unused = unused
         db.queuedTasks.append(task)
 
     def read_activation_as_pi(self, db: MooDatabase) -> Activation:
@@ -446,9 +447,9 @@ class Reader:
         if db.version >= DBVersions.DBV_Anon:
             _vloc = self.readValue(db)
         if db.version >= DBVersions.DBV_Threaded:
-            _threaded = self.readInt()
-        # else
-        #     _threaded = DEFAULT_THREAD_MODE;
+            threaded = self.readInt()
+        else:
+            threaded = 0
 
         headerLine = self.readString()
         headerMatch = activationHeaderRe.match(headerLine)
@@ -457,6 +458,7 @@ class Reader:
 
         activation = Activation()
         activation.this = int(headerMatch[1])
+        activation.threaded = threaded
         activation.player = int(headerMatch[2])
         activation.programmer = int(headerMatch[3])
         activation.vloc = int(headerMatch[4])
@@ -486,6 +488,7 @@ class Reader:
         for _ in range(int(stackheaderMatch.group("slots"))):
             _s = self.readValue(db)
         activation = self.read_activation_as_pi(db)
+        activation.code = code
         _temp = self.readValue(db)
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
