@@ -65,6 +65,7 @@ class WaifReference:
 @attrs.define(init=False)
 class Activation:
     this: int
+    threaded: int
     player: int
     programmer: int
     vloc: int

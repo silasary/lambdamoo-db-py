@@ -3,7 +3,7 @@ from typing import Any
 from attrs import define, asdict
 
 from . import templates
-from .database import VM, MooDatabase, MooObject, ObjNum, Property, SuspendedTask, Verb
+from .database import VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, Verb
 
 
 @define
@@ -18,7 +18,7 @@ class Writer:
         self.write(f"{i: d}")
 
     def writeString(self, s: str) -> None:
-        self.write(f"{s: s}\n")
+        self.write(f"{s}\n")
 
     def writeObj(self, obj: ObjNum) -> None:
         self.write(f"{obj: d}")
@@ -68,6 +68,7 @@ class Writer:
         self.writeInterruptedTasks()
         self.writeConnections()
         self.writeObjects()
+        self.writeVerbs()
 
     def writePlayers(self) -> None:
         self.writeCollection(self.db.players, writer=self.writeString)
@@ -103,12 +104,12 @@ class Writer:
         self.writeCollection(obj.properties, None, lambda prop: self.writeString(prop.propertyName))
         self.writeCollection(obj.properties, None, self.writeProperty)
 
-    def writeProperty(self, prop):
+    def writeProperty(self, prop: Property):
         self.writeValue(prop.value)
         self.writeInt(prop.owner)
         self.writeInt(prop.perms)
 
-    def writeVerbs  (self) -> None:
+    def writeVerbs(self) -> None:
         for verb in self.db.all_verbs():
             self.writeVerb(verb)
 
@@ -120,7 +121,7 @@ class Writer:
         self.writeString(vloc)
         self.writeCode(verb.code)
 
-    def writeCode(self, code: list) -> None:
+    def writeCode(self, code: list[str]) -> None:
         for line in code:
             self.writeString(line)
         self.writeString(".")
@@ -142,12 +143,33 @@ class Writer:
     def writeTaskQueue(self):
         self.writeCollection(self.db.queuedTasks, templates.task_count, self.writeQueuedTask)
 
-    def writeQueuedTask(self, task):
-        self.writeInt(task.time)
-        self.writeString(task.verb)
-        self.writeValue(task.object)
-        self.writeValue(task.player)
-        self.writeValue(task.arglist)
+    def writeQueuedTask(self, db: MooDatabase, task: QueuedTask) -> str:
+        taskHeader = templates.task_header.format(task.firstLineno, task.id, task.st)
+        self.writeString(taskHeader)
+        self.writeActivation(task.activation)
+
+    def writeActivationAsPI(self, activation: Activation):
+        self.writeInt(0)
+        self.writeValue(activation.this)
+        self.writeValue(activation.threaded)
+        self.writeValue(activation.vloc)
+        activationHeader = templates.activationHeader.format(
+            activation.this,
+            activation.player,
+            activation.programmer,
+            activation.vloc,
+            int(activation.debug)  # Convert bool to int
+        )
+        self.writeString(activationHeader)
+        self.writeString("unused")
+        self.writeString("unused")
+        self.writeString("unused")
+        self.writeString("unused")
+        self.writeString(activation.verb)
+        self.writeString(activation.verbname)
+
+    def writeActivation(self, activation):
+        pass
 
     def writeSuspendedTasks(self):
         self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
@@ -159,3 +181,8 @@ class Writer:
 
     def writeVM(self, vm: VM):
         self.writeValue(vm.locals)
+
+
+def dump(db: MooDatabase, f: TextIOWrapper) -> None:
+    writer = Writer(db=db, f=f)
+    writer.writeDatabase()
