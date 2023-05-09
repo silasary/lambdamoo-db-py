@@ -458,11 +458,15 @@ class Reader:
 
         activation = Activation()
         activation.this = int(headerMatch[1])
+        activation.unused1 = int(headerMatch[2])
         activation.threaded = threaded
-        activation.player = int(headerMatch[2])
-        activation.programmer = int(headerMatch[3])
-        activation.vloc = int(headerMatch[4])
-        activation.debug = bool(headerMatch[5])
+        activation.unused2 = int(headerMatch[3])
+        activation.player = int(headerMatch[4])
+        activation.unused3 = int(headerMatch[5])
+        activation.programmer = int(headerMatch[6])
+        activation.vloc = int(headerMatch[7])
+        activation.unused4 = int(headerMatch[8])
+        activation.debug = bool(headerMatch[9])
         self.readString()  # /* Was argstr*/
         self.readString()  # /* Was dobjstr*/
         self.readString()  # /* Was prepstr*/
@@ -485,10 +489,14 @@ class Reader:
         stackheaderMatch = stackheaderRe.match(stackheader)
         if not stackheaderMatch:
             self.parse_error("READ_ACTIV: bad stack header")
+        stack = []
         for _ in range(int(stackheaderMatch.group("slots"))):
             _s = self.readValue(db)
+            stack.append(_s)
         activation = self.read_activation_as_pi(db)
+        activation.stack = stack
         activation.code = code
+        activation.stack = stack
         _temp = self.readValue(db)
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
