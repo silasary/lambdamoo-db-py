@@ -62,16 +62,17 @@ class WaifReference:
     index: int
 
 
-@attrs.define(init=False)
+@attrs.define()
 class Activation:
-    this: int
-    threaded: int
-    player: int
-    programmer: int
-    vloc: int
-    debug: bool
-    verb: str
-    verbname: str
+    this: int | None = attrs.field(init=False, default=None)
+    threaded: int | None = attrs.field(init=False, default=None)
+    player: int | None = attrs.field(init=False, default=None)
+    programmer: int | None = attrs.field(init=False, default=None)
+    vloc: int | None = attrs.field(init=False, default=None)
+    debug: bool = attrs.field(init=False)
+    verb: str = attrs.field(init=False)
+    verbname: str = attrs.field(init=False)
+    code: list[str] = attrs.field(init=False, factory=list)
 
 
 @attrs.define()
@@ -85,6 +86,7 @@ class QueuedTask:
     firstLineno: int
     id: int
     st: int
+    unused: int = attrs.field(init=False, default=0)
     value: Any = attrs.field(init=False, default=None)
     activation: Activation | None = attrs.field(init=False)
     rtEnv: dict[str, Any] = attrs.field(init=False)

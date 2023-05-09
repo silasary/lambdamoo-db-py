@@ -65,8 +65,8 @@ class Writer:
         self.writeClocks()
         self.writeTaskQueue()
         self.writeSuspendedTasks()
-        self.writeInterruptedTasks()
-        self.writeConnections()
+        #self.writeInterruptedTasks()
+        # self.writeConnections()
         self.writeObjects()
         self.writeVerbs()
 
@@ -96,7 +96,9 @@ class Writer:
     def writeVerbMetadata(self, verb: Verb) -> None:
         self.writeString(verb.name)
         self.writeInt(verb.owner)
+        self.write("\n")
         self.writeInt(verb.perms)
+        self.write("\n")
         self.writeInt(verb.preps)
         self.write("\n")
 
@@ -117,7 +119,7 @@ class Writer:
         objnum = verb.object
         object = self.db.objects[objnum]
         index = object.verbs.index(verb)
-        vloc = f"{objnum}:{index}"
+        vloc = f"#{objnum}:{index}"
         self.writeString(vloc)
         self.writeCode(verb.code)
 
@@ -143,8 +145,8 @@ class Writer:
     def writeTaskQueue(self):
         self.writeCollection(self.db.queuedTasks, templates.task_count, self.writeQueuedTask)
 
-    def writeQueuedTask(self, db: MooDatabase, task: QueuedTask) -> str:
-        taskHeader = templates.task_header.format(task.firstLineno, task.id, task.st)
+    def writeQueuedTask(self, task: QueuedTask) -> str:
+        taskHeader = templates.task_header.format(**asdict(task))
         self.writeString(taskHeader)
         self.writeActivation(task.activation)
 
@@ -161,15 +163,17 @@ class Writer:
             int(activation.debug)  # Convert bool to int
         )
         self.writeString(activationHeader)
-        self.writeString("unused")
-        self.writeString("unused")
-        self.writeString("unused")
-        self.writeString("unused")
+        self.writeString("No")
+        self.writeString("More")
+        self.writeString("Parse")
+        self.writeString("Infos")
         self.writeString(activation.verb)
         self.writeString(activation.verbname)
 
     def writeActivation(self, activation):
-        pass
+        langver = templates.langver.format(version=17)
+        self.writeString(langver)
+        self.writeCode(activation.code)
 
     def writeSuspendedTasks(self):
         self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
@@ -181,6 +185,12 @@ class Writer:
 
     def writeVM(self, vm: VM):
         self.writeValue(vm.locals)
+
+    def writeRtEnv(self, env: dict[str, Any]):
+        header = templates.var_count.format(count=len(env))
+        for name, value in env.items():
+            self.writeString(name)
+            self.writeValue(value)
 
 
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
