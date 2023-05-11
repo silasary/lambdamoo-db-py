@@ -68,7 +68,7 @@ class Writer:
         self.writeTaskQueue()
         self.writeSuspendedTasks()
         # self.writeInterruptedTasks()
-        # self.writeConnections()
+        self.writeConnections()
         self.writeObjects()
         self.writeVerbs()
 
@@ -144,6 +144,13 @@ class Writer:
     def writeClocks(self):
         self.writeCollection(self.db.clocks, templates.clock_count)
 
+    def writeSuspendedTasks(self):
+        self.writeCollection(self.db.suspendedTasks, templates.suspended_task_count, self.writeSuspendedTask)
+
+    def writeSuspendedTask(self, task: SuspendedTask):
+        task_header = templates.suspended_task_header.format(**asdict(task))
+        self.writeString(task_header)
+
     def writeTaskQueue(self):
         self.writeCollection(self.db.queuedTasks, templates.task_count, self.writeQueuedTask)
 
@@ -198,6 +205,10 @@ class Writer:
                 self.writeValue(value)
             self.write("\n")
 
+
+    def writeConnections(self):
+        # these are not useful
+        self.writeCollection([], "{count} active connections")
 
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
     writer = Writer(db=db, f=f)
