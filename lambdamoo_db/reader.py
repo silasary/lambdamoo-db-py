@@ -348,13 +348,21 @@ class Reader:
         parent = obj
         while parent is not None:
             names.extend(p.propertyName for p in parent.properties if p.propertyName is not None)
+            if len(parent.parents) > 1:
+                # todo: Identify order of multi-inheritence
+                break
             parent = db.objects.get(parent.parent)
+        i = 1
         for p in obj.properties:
-            n = names.pop(0)
+            try:
+                n = names.pop(0)
+            except IndexError:
+                n = i
             if not p.propertyName:
                 p.propertyName = n
             elif n != p.propertyName:
                 self.parse_error(f"property name mismatch: {n} != {p.propertyName}")
+            i += 1
 
     def readVerbMetadata(self, obj: MooObject) -> None:
         name = self.readString()

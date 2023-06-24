@@ -52,9 +52,7 @@ def to_json(db: MooDatabase) -> str:
     return json.dumps(cattrs.unstructure(db), indent=2, default=converter)
 
 
-def to_json_file(
-    db: MooDatabase, f: TextIOWrapper, indent: Optional[int] = None
-) -> None:
+def to_json_file(db: MooDatabase, f: TextIOWrapper, indent: Optional[int] = None) -> None:
     json.dump(cattrs.unstructure(db), f, indent=indent, default=converter)
 
 
@@ -82,11 +80,15 @@ def to_moo_files(db: MooDatabase, path: str, corrify: bool) -> None:
 
             info = {
                 "name": o.name,
-                "parent": name(o.parents),
+                "parent": None,
+                "parents": [name(p) for p in o.parents],
                 "owner": o.owner,
                 "location": o.location,
                 "verbs": [v.name for v in o.verbs],
             }
+            if len(o.parents) < 2:
+                info["parent"] = o.parent
+
             json.dump(info, f, indent=2)
         with open(os.path.join(path, id, "props.json"), "w") as f:
             json.dump(cattrs.unstructure(o.properties), f, indent=2, default=converter)
