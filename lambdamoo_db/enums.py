@@ -39,3 +39,8 @@ class DBVersions(enum.IntEnum):
     DBV_Threaded = 16  # Store threading information
     DBV_Bool = 17  # Boolean type
     Num_DB_Versions = 18  # Special: the current version is this - 1.
+
+class PropertyFlags(enum.Flag):
+    R = 1
+    W = 2
+    C = 4
