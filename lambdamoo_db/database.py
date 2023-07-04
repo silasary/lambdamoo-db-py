@@ -1,5 +1,6 @@
 from typing import Any, Generator
 import attrs
+from .enums import MooTypes
 
 
 class ObjNum(int):
@@ -62,15 +63,22 @@ class WaifReference:
     index: int
 
 
-@attrs.define(init=False)
+@attrs.define()
 class Activation:
-    this: int
-    player: int
-    programmer: int
-    vloc: int
-    debug: bool
-    verb: str
-    verbname: str
+    this: int | None = attrs.field(init=False, default=None)
+    threaded: int | None = attrs.field(init=False, default=None)
+    player: int | None = attrs.field(init=False, default=None)
+    programmer: int | None = attrs.field(init=False, default=None)
+    vloc: int | None = attrs.field(init=False, default=None)
+    debug: bool = attrs.field(init=False)
+    verb: str = attrs.field(init=False)
+    verbname: str = attrs.field(init=False)
+    code: list[str] = attrs.field(init=False, factory=list)
+    stack: list[Any] = attrs.field(init=False, factory=list)
+    unused1 = attrs.field(init=False, default=0)
+    unused2 = attrs.field(init=False, default=0)
+    unused3 = attrs.field(init=False, default=0)
+    unused4 = attrs.field(init=False, default=0)
 
 
 @attrs.define()
@@ -84,6 +92,7 @@ class QueuedTask:
     firstLineno: int
     id: int
     st: int
+    unused: int = attrs.field(init=False, default=0)
     value: Any = attrs.field(init=False, default=None)
     activation: Activation | None = attrs.field(init=False)
     rtEnv: dict[str, Any] = attrs.field(init=False)
@@ -97,6 +106,18 @@ class SuspendedTask:
     st: int
     value: Any = attrs.field(init=False, default=None)
     vm: VM = attrs.field(init=False, default=None)
+
+
+TYPE_MAPPING = {
+    int: MooTypes.INT,
+    str: MooTypes.STR,
+    ObjNum: MooTypes.OBJ,
+    float: MooTypes.FLOAT,
+    list: MooTypes.LIST,
+    dict: MooTypes.MAP,
+    bool: MooTypes.BOOL,
+    type(None): MooTypes.NONE,
+}
 
 
 @attrs.define(init=False)

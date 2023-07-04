@@ -2,8 +2,10 @@ from io import TextIOWrapper
 from typing import Any
 from attrs import define, asdict
 
+from lambdamoo_db.enums import MooTypes
+
 from . import templates
-from .database import VM, MooDatabase, MooObject, ObjNum, Property, SuspendedTask, Verb
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, Verb
 
 
 @define
@@ -18,7 +20,7 @@ class Writer:
         self.write(f"{i: d}")
 
     def writeString(self, s: str) -> None:
-        self.write(f"{s: s}\n")
+        self.write(f"{s}\n")
 
     def writeObj(self, obj: ObjNum) -> None:
         self.write(f"{obj: d}")
@@ -65,9 +67,10 @@ class Writer:
         self.writeClocks()
         self.writeTaskQueue()
         self.writeSuspendedTasks()
-        self.writeInterruptedTasks()
+        # self.writeInterruptedTasks()
         self.writeConnections()
         self.writeObjects()
+        self.writeVerbs()
 
     def writePlayers(self) -> None:
         self.writeCollection(self.db.players, writer=self.writeString)
@@ -95,7 +98,9 @@ class Writer:
     def writeVerbMetadata(self, verb: Verb) -> None:
         self.writeString(verb.name)
         self.writeInt(verb.owner)
+        self.write("\n")
         self.writeInt(verb.perms)
+        self.write("\n")
         self.writeInt(verb.preps)
         self.write("\n")
 
@@ -103,12 +108,12 @@ class Writer:
         self.writeCollection(obj.properties, None, lambda prop: self.writeString(prop.propertyName))
         self.writeCollection(obj.properties, None, self.writeProperty)
 
-    def writeProperty(self, prop):
+    def writeProperty(self, prop: Property):
         self.writeValue(prop.value)
         self.writeInt(prop.owner)
         self.writeInt(prop.perms)
 
-    def writeVerbs  (self) -> None:
+    def writeVerbs(self) -> None:
         for verb in self.db.all_verbs():
             self.writeVerb(verb)
 
@@ -116,11 +121,11 @@ class Writer:
         objnum = verb.object
         object = self.db.objects[objnum]
         index = object.verbs.index(verb)
-        vloc = f"{objnum}:{index}"
+        vloc = f"#{objnum}:{index}"
         self.writeString(vloc)
         self.writeCode(verb.code)
 
-    def writeCode(self, code: list) -> None:
+    def writeCode(self, code: list[str]) -> None:
         for line in code:
             self.writeString(line)
         self.writeString(".")
@@ -139,15 +144,43 @@ class Writer:
     def writeClocks(self):
         self.writeCollection(self.db.clocks, templates.clock_count)
 
+    def writeSuspendedTasks(self):
+        self.writeCollection(self.db.suspendedTasks, templates.suspended_task_count, self.writeSuspendedTask)
+
+    def writeSuspendedTask(self, task: SuspendedTask):
+        task_header = templates.suspended_task_header.format(**asdict(task))
+        self.writeString(task_header)
+
     def writeTaskQueue(self):
         self.writeCollection(self.db.queuedTasks, templates.task_count, self.writeQueuedTask)
 
-    def writeQueuedTask(self, task):
-        self.writeInt(task.time)
-        self.writeString(task.verb)
-        self.writeValue(task.object)
-        self.writeValue(task.player)
-        self.writeValue(task.arglist)
+    def writeQueuedTask(self, task: QueuedTask) -> str:
+        taskHeader = templates.task_header.format(**asdict(task))
+        self.writeString(taskHeader)
+        self.writeActivation(task.activation)
+        self.writeRtEnv(task.rtEnv)
+        self.writeCode(task.code)
+
+    def writeActivationAsPI(self, activation: Activation):
+        self.writeValue(activation.unused1)
+        self.writeValue(activation.this)
+        self.writeValue(activation.unused1)
+        self.writeValue(activation.threaded)
+        self.writeValue(activation.vloc)
+        self.write("\n")
+        activation_header = templates.activation_header.format(**asdict(activation))
+        self.writeString(activation_header)
+        self.writeString("No")
+        self.writeString("More")
+        self.writeString("Parse")
+        self.writeString("Infos")
+        self.writeString(activation.verb)
+        self.writeString(activation.verbname)
+
+    def writeActivation(self, activation):
+        langver = templates.langver.format(version=17)
+        self.writeString(langver)
+        self.writeActivationAsPI(activation)
 
     def writeSuspendedTasks(self):
         self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
@@ -159,3 +192,24 @@ class Writer:
 
     def writeVM(self, vm: VM):
         self.writeValue(vm.locals)
+
+    def writeRtEnv(self, env: dict[str, Any]):
+        header = templates.var_count.format(count=len(env))
+        self.writeString(header)
+        for name, value in env.items():
+            self.writeString(name)
+            moo_type = TYPE_MAPPING[type(value)]
+            self.writeInt(moo_type)
+            if (moo_type != MooTypes.NONE):
+                self.write("\n")
+                self.writeValue(value)
+            self.write("\n")
+
+
+    def writeConnections(self):
+        # these are not useful
+        self.writeCollection([], "{count} active connections")
+
+def dump(db: MooDatabase, f: TextIOWrapper) -> None:
+    writer = Writer(db=db, f=f)
+    writer.writeDatabase()
