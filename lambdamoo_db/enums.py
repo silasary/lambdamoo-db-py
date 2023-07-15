@@ -44,3 +44,16 @@ class PropertyFlags(enum.Flag):
     R = 1
     W = 2
     C = 4
+
+class ObjectFlags(enum.Flag):
+    FLAG_USER = 1
+    FLAG_PROGRAMMER = 2
+    FLAG_WIZARD = 4
+    FLAG_OBSOLETE_1 = 8
+    FLAG_READ = 16
+    FLAG_WRITE = 32
+    FLAG_OBSOLETE_2 = 64
+    FLAG_FERTILE = 128
+    FLAG_ANONYMOUS = 256
+    FLAG_INVALID = 512
+    FLAG_RECYCLED = 1024
