@@ -106,7 +106,6 @@ class Reader:
         self.readObjects(db)
         if db.version >= DBVersions.DBV_Anon:
             self.readAnonObjects(db)
-        self.readInt()
         db.total_verbs = self.readInt()
         self.readVerbs(db)
 
@@ -337,11 +336,15 @@ class Reader:
         logger.debug(f"Finished reading {db.total_players} players")
 
     def readAnonObjects(self, db: MooDatabase) -> None:
-        num_anon = self.readInt()
-        if num_anon > 0:
-            obj = self.readObject_ng(db)
-            obj.anon = True
-            db.objects[obj.id] = obj
+        while True:
+            num_anon = self.readInt()
+            if num_anon == 0:
+                break
+            if num_anon > 0:
+                for i in range(num_anon):
+                    obj = self.readObject_ng(db)
+                    obj.anon = True
+                    db.objects[obj.id] = obj
 
     def readObjects(self, db: MooDatabase) -> None:
         db.objects = {}
