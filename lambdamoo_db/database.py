@@ -1,6 +1,6 @@
 from typing import Any, Generator
 import attrs
-from .enums import MooTypes
+from .enums import MooTypes, ObjectFlags, PropertyFlags
 
 
 class ObjNum(int):
@@ -26,14 +26,14 @@ class Property:
     propertyName: str
     value: Any
     owner: int
-    perms: int
+    perms: PropertyFlags = attrs.field(converter=PropertyFlags)
 
 
 @attrs.define()
 class MooObject:
     id: int
     name: str
-    flags: int
+    flags: ObjectFlags = attrs.field(converter=ObjectFlags)
     owner: int
     location: int
     parents: list[int] = attrs.field(factory=list)
