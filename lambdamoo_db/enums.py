@@ -1,5 +1,6 @@
 import enum
 
+
 class MooTypes(enum.IntEnum):
     INT = 0
     OBJ = 1
@@ -19,9 +20,7 @@ class MooTypes(enum.IntEnum):
 
 class DBVersions(enum.IntEnum):
     DBV_Prehistory = 0  # Before format versions
-    DBV_Exceptions = (
-        1  # Addition of the `try', `except', `finally', and `endtry' keywords.
-    )
+    DBV_Exceptions = 1  # Addition of the `try', `except', `finally', and `endtry' keywords.
     DBV_BreakCont = 2  # Addition of the `break' and `continue' keywords.
     DBV_Float = 3  # Addition of `FLOAT' and `INT' variables and the `E_FLOAT' keyword, along with version numbers on each frame of a suspended task.
     DBV_BFBugFixed = 4  # Bug in built-in function overrides fixed by making it use tail-calling.  This DB_Version change exists solely to turn off special bug handling in read_bi_func_data().
@@ -39,3 +38,23 @@ class DBVersions(enum.IntEnum):
     DBV_Threaded = 16  # Store threading information
     DBV_Bool = 17  # Boolean type
     Num_DB_Versions = 18  # Special: the current version is this - 1.
+
+
+class PropertyFlags(enum.Flag):
+    R = 1
+    W = 2
+    C = 4
+
+
+class ObjectFlags(enum.Flag):
+    FLAG_USER = 1
+    FLAG_PROGRAMMER = 2
+    FLAG_WIZARD = 4
+    FLAG_OBSOLETE_1 = 8
+    FLAG_READ = 16
+    FLAG_WRITE = 32
+    FLAG_OBSOLETE_2 = 64
+    FLAG_FERTILE = 128
+    FLAG_ANONYMOUS = 256
+    FLAG_INVALID = 512
+    FLAG_RECYCLED = 1024

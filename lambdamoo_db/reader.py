@@ -1,7 +1,5 @@
-from io import TextIOWrapper
-import re
-import parse
-from typing import Any, NoReturn, Pattern
+from . import templates
+from .enums import DBVersions, MooTypes, PropertyFlags
 from .database import (
     VM,
     Anon,
@@ -16,8 +14,12 @@ from .database import (
     Verb,
     WaifReference,
 )
-from .enums import DBVersions, MooTypes
-from . import templates
+from typing import Any, NoReturn, Pattern, Union
+import parse
+import re
+from io import TextIOWrapper
+from logging import getLogger
+logger = getLogger(__name__)
 
 
 def load(filename: str) -> MooDatabase:
@@ -79,6 +81,7 @@ class Reader:
         return db
 
     def parse_v4(self, db: MooDatabase) -> None:
+        logger.debug("Parsing v4 database")
         db.total_objects = self.readInt()
         db.total_verbs = self.readInt()
         self.readString()  # dummy
@@ -91,6 +94,7 @@ class Reader:
         self.readConnections()
 
     def parse_v17(self, db: MooDatabase) -> None:
+        logger.debug("Parsing v17 database")
         self.readPlayers(db)
         self.readPending(db)
         self.readClocks(db)
@@ -203,12 +207,13 @@ class Reader:
         _terminator = self.readString()
         return WaifReference(index)
 
-    def readObject_v4(self, db: MooDatabase) -> MooObject | None:
+    def readObject_v4(self, db: MooDatabase) -> Union[MooObject, None]:
         objNumber = self.readString()
         if not objNumber.startswith("#"):
             self.parse_error("object number does not have #")
 
         if "recycled" in objNumber:
+            logger.debug(f"Skipping recycled object {objNumber}")
             return None
 
         oid = int(objNumber[1:])
@@ -235,14 +240,16 @@ class Reader:
             self.readVerbMetadata(obj)
 
         self.readProperties(db, obj)
+        logger.debug(f"Read object {oid} {obj.name}")
         return obj
 
-    def readObject_ng(self, db: MooDatabase) -> MooObject | None:
+    def readObject_ng(self, db: MooDatabase) -> Union[MooObject, None]:
         objNumber = self.readString()
         if not objNumber.startswith("#"):
             self.parse_error("object number does not have #")
 
         if "recycled" in objNumber:
+            logger.debug(f"Skipping recycled object {objNumber}")
             return None
 
         oid = int(objNumber[1:])
@@ -264,6 +271,7 @@ class Reader:
             self.readVerbMetadata(obj)
 
         self.readProperties(db, obj)
+        logger.debug(f"Read object {oid} {obj.name}")
         return obj
 
     def readAnon(self, db: MooDatabase) -> None:
@@ -285,8 +293,10 @@ class Reader:
             self.readString()
 
     def readVerbs(self, db: MooDatabase) -> None:
+        logger.debug(f"Reading {db.total_verbs} verbs")
         for _ in range(db.total_verbs):
             self.readVerb(db)
+        logger.debug(f"Finished reading {db.total_verbs} verbs")
 
     def readVerb(self, db: MooDatabase) -> None:
         verbLocation = self.readString()
@@ -318,17 +328,23 @@ class Reader:
 
     def readPlayers(self, db: MooDatabase) -> None:
         db.total_players = self.readInt()
+        logger.debug(f"Reading {db.total_players} players")
         db.players = []
         for _ in range(db.total_players):
             db.players.append(self.readObjnum())
         assert db.total_players == len(db.players)
+        logger.debug(f"Finished reading {db.total_players} players")
 
     def readAnonObjects(self, db: MooDatabase) -> None:
-        num_anon = self.readInt()
-        if num_anon > 0:
-            obj = self.readObject_ng(db)
-            obj.anon = True
-            db.objects[obj.id] = obj
+        while True:
+            num_anon = self.readInt()
+            if num_anon == 0:
+                break
+            if num_anon > 0:
+                for i in range(num_anon):
+                    obj = self.readObject_ng(db)
+                    obj.anon = True
+                    db.objects[obj.id] = obj
 
     def readObjects(self, db: MooDatabase) -> None:
         db.objects = {}
@@ -384,7 +400,7 @@ class Reader:
                 propertyName = propertyNames.pop(0)
             value = self.readValue(db)
             owner = self.readObjnum()
-            perms = self.readInt()
+            perms = PropertyFlags(self.readInt())
             property = Property(propertyName, value, owner, perms)
             obj.properties.append(property)
 
@@ -419,9 +435,12 @@ class Reader:
             self.parse_error("Could not find task queue")
 
         numTasks = int(queuedTasksMatch.group("count"))
+        logger.debug(f"Reading {numTasks} queued tasks")
         db.queuedTasks = []
         for _ in range(numTasks):
             self.readQueuedTask(db)
+        assert numTasks == len(db.queuedTasks)
+        logger.debug(f"Finished reading {numTasks} queued tasks")
 
     def readQueuedTask(self, db: MooDatabase) -> None:
         headerLine = self.readString()
@@ -512,6 +531,7 @@ class Reader:
             self.parse_error("Could not find variable count for RT Env")
 
         varCount = int(varCountMatch.group("count"))
+        logger.debug(f"Reading RTEnv with {varCount} variables")
         rtEnv = {}
         for _ in range(varCount):
             name = self.readString()
