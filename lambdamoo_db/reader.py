@@ -91,7 +91,7 @@ class Reader:
         self.readClocks(db)
         self.readTaskQueue(db)
         self.readSuspendedTasks(db)
-        self.readConnections()
+        self.readConnections(db)
 
     def parse_v17(self, db: MooDatabase) -> None:
         logger.debug("Parsing v17 database")
@@ -101,7 +101,7 @@ class Reader:
         self.readTaskQueue(db)
         self.readSuspendedTasks(db)
         self.readInterruptedTasks(db)
-        self.readConnections()
+        self.readConnections(db)
         db.total_objects = self.readInt()
         self.readObjects(db)
         if db.version >= DBVersions.DBV_Anon:
@@ -281,16 +281,11 @@ class Reader:
         else:
             return Anon(oid)
 
-    def readConnections(self) -> None:
-        header = self.readString()
-        headerMatch = connectionCountRe.match(header)
-        if not headerMatch:
-            self.parse_error("Bad active connections header line")
-
+    def readConnections(self, db: MooDatabase) -> None:
+        headerMatch = self._read_and_match(connectionCountRe, "Bad active connections header line")
         count = int(headerMatch.group("count"))
-        for _ in range(count):
-            # Read and discard `count` lines; this data is useless to us.
-            self.readString()
+        self._read_and_process_items(db, count, lambda _: self.readString())
+        # Read and discard `count` lines; this data is useless to us.
 
     def readVerbs(self, db: MooDatabase) -> None:
         logger.debug(f"Reading {db.total_verbs} verbs")
@@ -329,9 +324,7 @@ class Reader:
     def readPlayers(self, db: MooDatabase) -> None:
         db.total_players = self.readInt()
         logger.debug(f"Reading {db.total_players} players")
-        db.players = []
-        for _ in range(db.total_players):
-            db.players.append(self.readObjnum())
+        self._read_and_process_items(db, db.total_players, lambda _: db.players.append(self.readObjnum()))
         assert db.total_players == len(db.players)
         logger.debug(f"Finished reading {db.total_players} players")
 
@@ -405,40 +398,26 @@ class Reader:
             obj.properties.append(property)
 
     def readPending(self, db: MooDatabase) -> None:
-        valueLine = self.readString()
-        valueMatch = pendingValueRe.match(valueLine)
-        if not valueMatch:
-            self.parse_error("Bad pending finalizations")
-
+        valueMatch = self._read_and_match(pendingValueRe, "Bad pending finalizations")
         finalizationCount = int(valueMatch.group("count"))
-        for _ in range(finalizationCount):
-            self.readValue(db)
+        self._read_and_process_items(db, finalizationCount, lambda _: self.readValue(db))
 
     def readClocks(self, db: MooDatabase) -> None:
-        clockLine = self.readString()
-        clockMatch = clockCountRe.match(clockLine)
-        if not clockMatch:
-            self.parse_error("Could not find clock definitions")
-        db.clocks = []
+        clockMatch = self._read_and_match(clockCountRe, "Could not find clock definitions")
         numClocks = int(clockMatch.group("count"))
-        for _ in range(numClocks):
-            self.readClock(db)
+        db.clocks = []
+        self._read_and_process_items(db, numClocks, self.readClock)
 
     def readClock(self, db: MooDatabase) -> None:
         """Obsolete"""
         db.clocks.append(self.readString())
 
     def readTaskQueue(self, db: MooDatabase) -> None:
-        queuedTasksLine = self.readString()
-        queuedTasksMatch = taskCountRe.match(queuedTasksLine)
-        if not queuedTasksMatch:
-            self.parse_error("Could not find task queue")
-
+        queuedTasksMatch = self._read_and_match(taskCountRe, "Could not find task queue")
         numTasks = int(queuedTasksMatch.group("count"))
         logger.debug(f"Reading {numTasks} queued tasks")
         db.queuedTasks = []
-        for _ in range(numTasks):
-            self.readQueuedTask(db)
+        self._read_and_process_items(db, numTasks, self.readQueuedTask)
         assert numTasks == len(db.queuedTasks)
         logger.debug(f"Finished reading {numTasks} queued tasks")
 
@@ -525,11 +504,7 @@ class Reader:
         return activation
 
     def readRTEnv(self, db: MooDatabase) -> dict[str, Any]:
-        varCountLine = self.readString()
-        varCountMatch = varCountRe.match(varCountLine)
-        if not varCountMatch:
-            self.parse_error("Could not find variable count for RT Env")
-
+        varCountMatch = self._read_and_match(varCountRe, "Could not find variable count for RT Env")
         varCount = int(varCountMatch.group("count"))
         logger.debug(f"Reading RTEnv with {varCount} variables")
         rtEnv = {}
@@ -540,15 +515,10 @@ class Reader:
         return rtEnv
 
     def readSuspendedTasks(self, db: MooDatabase) -> None:
-        valueLine = self.readString()
-        suspendedMatch = suspendedTaskCountRe.match(valueLine)
-        if not suspendedMatch:
-            self.parse_error("Bad suspended tasks header")
-
+        suspendedMatch = self._read_and_match(suspendedTaskCountRe, "Bad suspended tasks header")
         db.suspendedTasks = []
         count = int(suspendedMatch.group("count"))
-        for _ in range(count):
-            self.readSuspendedTask(db)
+        self._read_and_process_items(db, count, self.readSuspendedTask)
 
     def readSuspendedTask(self, db: MooDatabase) -> None:
         headerLine = self.readString()
@@ -598,3 +568,14 @@ class Reader:
         for _ in range(top + 1):
             stack.append(self.read_activation(db))
         return VM(local, stack)
+
+    def _read_and_match(self, pattern, error_message):
+        line = self.readString()
+        match = pattern.match(line)
+        if not match:
+            self.parse_error(error_message)
+        return match
+
+    def _read_and_process_items(self, db: MooDatabase, count: int, process_function):
+        for _ in range(count):
+            process_function(db)
