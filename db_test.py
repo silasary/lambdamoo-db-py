@@ -1,3 +1,5 @@
+import os
+
 from lambdamoo_db import exporter
 from lambdamoo_db.reader import load
 import cattrs
@@ -10,7 +12,7 @@ def test_lambda() -> None:
     assert db.total_objects == 97
     assert db.total_verbs == 1727
 
-    with open("LambdaCore-latest.json", "w") as f:
+    with open(os.path.join('test_output', "LambdaCore-latest.json"), "w") as f:
         exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
 
 
@@ -19,7 +21,7 @@ def test_toast() -> None:
     assert db is not None
     assert db.version == 17
 
-    with open("toastcore.json", "w") as f:
+    with open(os.path.join('test_output', "toastcore.json"), "w") as f:
         exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
 
 
@@ -29,5 +31,5 @@ def test_toast2() -> None:
     assert len(db.suspendedTasks) > 0
     assert len(db.waifs) > 0
 
-    with open("toast2.json", "w") as f:
+    with open(os.path.join('test_output', "toast2.json"), "w") as f:
         exporter.to_json_file(cattrs.unstructure(db), f, indent=2)
