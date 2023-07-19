@@ -1,60 +1,54 @@
-from . import templates
-from .enums import DBVersions, MooTypes, PropertyFlags
-from .database import (
-    VM,
-    Anon,
-    ObjNum,
-    Waif,
-    Activation,
-    MooDatabase,
-    MooObject,
-    Property,
-    QueuedTask,
-    SuspendedTask,
-    Verb,
-    WaifReference,
-)
-from typing import Any, NoReturn, Pattern, Union
-import parse
 import re
 from io import TextIOWrapper
 from logging import getLogger
+from typing import Any, NoReturn, Pattern, Union
+
+import parse
+
+from . import templates
+from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
+                       Property, QueuedTask, SuspendedTask, Verb, Waif,
+                       WaifReference)
+from .enums import DBVersions, MooTypes, PropertyFlags
+
 logger = getLogger(__name__)
 
 
 def load(filename: str) -> MooDatabase:
+    """Load a database from a file"""
     with open(filename, "r", encoding="latin-1") as f:
         r = Reader(f, filename)
         return r.parse()
 
 
-def compile(template: str) -> Pattern[str]:
+def compile_re(template: str) -> Pattern[str]:
     compiled = parse.compile(template)
     if compiled._match_re is None:
         raise Exception(f"Failed to compile template: {template}")
     return compiled._match_re
 
 
-versionRe = compile(templates.version)
-varCountRe = compile(templates.var_count)
-clockCountRe = compile(templates.clock_count)
-taskCountRe = compile(templates.task_count)
-taskHeaderRe = compile(templates.task_header)
-activationHeaderRe = compile(templates.activation_header)
-pendingValueRe = compile(templates.pending_values_count)
-suspendedTaskCountRe = compile(templates.suspended_task_count)
-suspendedTaskHeaderRe = compile(templates.suspended_task_header)
-interruptedTaskCountRe = compile(templates.interrupted_task_count)
+versionRe = compile_re(templates.version)
+varCountRe = compile_re(templates.var_count)
+clockCountRe = compile_re(templates.clock_count)
+taskCountRe = compile_re(templates.task_count)
+taskHeaderRe = compile_re(templates.task_header)
+activationHeaderRe = compile_re(templates.activation_header)
+pendingValueRe = compile_re(templates.pending_values_count)
+suspendedTaskCountRe = compile_re(templates.suspended_task_count)
+suspendedTaskHeaderRe = compile_re(templates.suspended_task_header)
+interruptedTaskCountRe = compile_re(templates.interrupted_task_count)
 interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) (?P<status>[\w\W]+)")
-vmHeaderRe = compile(templates.vm_header)
+vmHeaderRe = compile_re(templates.vm_header)
 connectionCountRe = re.compile(r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)")
-langverRe = compile(templates.langver)
-stackheaderRe = compile(templates.stack_header)
-pcRe = compile(templates.pc)
-waifHeaderRe = compile(templates.waif_header)
+langverRe = compile_re(templates.langver)
+stackheaderRe = compile_re(templates.stack_header)
+pcRe = compile_re(templates.pc)
+waifHeaderRe = compile_re(templates.waif_header)
 
 
 class Reader:
+
     def __init__(self, fio: TextIOWrapper, filename: str = "") -> None:
         self.filename = filename
         self.file = fio
@@ -65,7 +59,6 @@ class Reader:
 
     def parse(self) -> "MooDatabase":
         db = MooDatabase()
-        db.waifs = {}
         db.versionstring = self.readString()
         version = versionRe.match(db.versionstring)
         if not version:
@@ -289,8 +282,7 @@ class Reader:
 
     def readVerbs(self, db: MooDatabase) -> None:
         logger.debug(f"Reading {db.total_verbs} verbs")
-        for _ in range(db.total_verbs):
-            self.readVerb(db)
+        self._read_and_process_items(db, db.total_verbs, self.readVerb)
         logger.debug(f"Finished reading {db.total_verbs} verbs")
 
     def readVerb(self, db: MooDatabase) -> None:
@@ -341,11 +333,9 @@ class Reader:
 
     def readObjects(self, db: MooDatabase) -> None:
         db.objects = {}
+        reader = self.readObject_v4 if db.version == 4 else self.readObject_ng
         for _ in range(db.total_objects):
-            if db.version == 4:
-                obj = self.readObject_v4(db)
-            else:
-                obj = self.readObject_ng(db)
+            obj = reader(db)
             if not obj:
                 continue
             db.objects[obj.id] = obj
@@ -382,6 +372,7 @@ class Reader:
         obj.verbs.append(verb)
 
     def readProperties(self, db: MooDatabase, obj: MooObject):
+        logger.debug(f"Reading properties for {obj.id} {obj.name}")
         numProperties = self.readInt()
         propertyNames = []
         for _ in range(numProperties):
@@ -405,34 +396,29 @@ class Reader:
     def readClocks(self, db: MooDatabase) -> None:
         clockMatch = self._read_and_match(clockCountRe, "Could not find clock definitions")
         numClocks = int(clockMatch.group("count"))
-        db.clocks = []
         self._read_and_process_items(db, numClocks, self.readClock)
 
     def readClock(self, db: MooDatabase) -> None:
         """Obsolete"""
         db.clocks.append(self.readString())
 
+
     def readTaskQueue(self, db: MooDatabase) -> None:
         queuedTasksMatch = self._read_and_match(taskCountRe, "Could not find task queue")
         numTasks = int(queuedTasksMatch.group("count"))
         logger.debug(f"Reading {numTasks} queued tasks")
-        db.queuedTasks = []
         self._read_and_process_items(db, numTasks, self.readQueuedTask)
         assert numTasks == len(db.queuedTasks)
         logger.debug(f"Finished reading {numTasks} queued tasks")
 
     def readQueuedTask(self, db: MooDatabase) -> None:
-        headerLine = self.readString()
-        headerMatch = taskHeaderRe.match(headerLine)
-        if not headerMatch:
-            self.parse_error("Could not find task header")
+        headerMatch = self._read_and_match(taskHeaderRe, "Could not find task header")
         unused = int(headerMatch[1])
         firstLineno = int(headerMatch[2])
         st = int(headerMatch[3])
         id = int(headerMatch[4])
         task = QueuedTask(firstLineno, id, st)
-        activation = self.read_activation_as_pi(db)
-        task.activation = activation
+        task.activation = self.read_activation_as_pi(db)
         task.rtEnv = self.readRTEnv(db)
         task.code = self.readCode()
         task.unused = unused
@@ -516,16 +502,11 @@ class Reader:
 
     def readSuspendedTasks(self, db: MooDatabase) -> None:
         suspendedMatch = self._read_and_match(suspendedTaskCountRe, "Bad suspended tasks header")
-        db.suspendedTasks = []
         count = int(suspendedMatch.group("count"))
         self._read_and_process_items(db, count, self.readSuspendedTask)
 
     def readSuspendedTask(self, db: MooDatabase) -> None:
-        headerLine = self.readString()
-        taskMatch = suspendedTaskHeaderRe.match(headerLine)
-        if not taskMatch:
-            self.parse_error(f"Bad suspended task header: {headerLine}")
-
+        taskMatch = self._read_and_match(suspendedTaskHeaderRe, "Bad suspended task header")
         id = int(taskMatch.group("id"))
         startTime = int(taskMatch.group("startTime"))
         task = SuspendedTask(0, id, startTime)  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
@@ -535,20 +516,12 @@ class Reader:
         db.suspendedTasks.append(task)
 
     def readInterruptedTasks(self, db: MooDatabase):
-        valueLine = self.readString()
-        interruptedMatch = interruptedTaskCountRe.match(valueLine)
-        if not interruptedMatch:
-            self.parse_error("Bad suspended tasks header")
-
+        interruptedMatch = self._read_and_match(interruptedTaskCountRe, "Bad suspended tasks header")
         count = int(interruptedMatch.group("count"))
-        for _ in range(count):
-            self.readInterruptedTask(db)
+        self._read_and_process_items(db, count, self.readInterruptedTask)
 
     def readInterruptedTask(self, db: MooDatabase) -> None:
-        header = self.readString()
-        headerMatch = interruptedTaskHeaderRe.match(header)
-        if not headerMatch:
-            self.parse_error("Bad interrupted tasks header")
+        headerMatch = self._read_and_match(interruptedTaskHeaderRe, "Bad interrupted tasks header")
         task_id = headerMatch.group("id")
         vm = self.readVM(db)
         # Shrug
