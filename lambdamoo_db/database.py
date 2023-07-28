@@ -120,20 +120,19 @@ TYPE_MAPPING = {
 }
 
 
-@attrs.define(init=False)
+@attrs.define
 class MooDatabase:
-    versionstring: str
-    version: int
-    total_objects: int
-    total_verbs: int
-    total_players: int
-    players: list[int]
-    clocks: list
-    objects: dict[int, MooObject]
-    queuedTasks: list[QueuedTask]
-    suspendedTasks: list[SuspendedTask]
-    waifs: dict[int, Waif]
-
+    versionstring: str = attrs.field(init=False)
+    version: int = attrs.field(init=False)
+    total_objects: int = attrs.field(init=False, default=0)
+    total_verbs: int = attrs.field(init=False, default=0)
+    total_players: int = attrs.field(init=False, default=0)
+    clocks: list = attrs.field(factory=list)
+    objects: dict[int, MooObject] = attrs.field(factory=dict)
+    queuedTasks: list[QueuedTask] = attrs.field(factory=list)
+    suspendedTasks: list[SuspendedTask] = attrs.field(factory=list)
+    waifs: dict[int, Waif] = attrs.field(factory=dict)
+    players: list[int] = attrs.field(factory=list)
     def all_verbs(self) -> Generator[Verb, None, None]:
         for obj in self.objects.values():
             for verb in obj.verbs:
