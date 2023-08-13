@@ -7,7 +7,7 @@ import parse
 
 from . import templates
 from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
-                       Property, QueuedTask, SuspendedTask, Verb, Waif,
+                       Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
                        WaifReference)
 from .enums import DBVersions, MooTypes, PropertyFlags
 
@@ -522,10 +522,10 @@ class Reader:
 
     def readInterruptedTask(self, db: MooDatabase) -> None:
         headerMatch = self._read_and_match(interruptedTaskHeaderRe, "Bad interrupted tasks header")
-        task_id = headerMatch.group("id")
+        task_id = int(headerMatch.group("id"))
         vm = self.readVM(db)
-        # Shrug
-        return None
+        task = InterruptedTask(task_id, vm)
+        db.interruptedTasks.append(task)
 
     def readVM(self, db: MooDatabase) -> VM:
         if db.version >= DBVersions.DBV_TaskLocal:
