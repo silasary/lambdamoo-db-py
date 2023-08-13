@@ -127,7 +127,7 @@ class Writer:
     def writeProperty(self, prop: Property):
         self.writeValue(prop.value)
         self.writeInt(prop.owner)
-        self.writeInt(prop.perms)
+        self.writeInt(prop.perms.value)
 
     def writeVerbs(self) -> None:
         self.writeInt(len(list(self.db.all_verbs())))
