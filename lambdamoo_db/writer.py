@@ -155,13 +155,6 @@ class Writer:
     def writeClocks(self):
         self.writeCollection(self.db.clocks, templates.clock_count)
 
-    def writeSuspendedTasks(self):
-        self.writeCollection(self.db.suspendedTasks, templates.suspended_task_count, self.writeSuspendedTask)
-
-    def writeSuspendedTask(self, task: SuspendedTask):
-        task_header = templates.suspended_task_header.format(**asdict(task))
-        self.writeString(task_header)
-
     def writeTaskQueue(self):
         self.writeCollection(self.db.queuedTasks, templates.task_count, self.writeQueuedTask)
 
@@ -194,7 +187,7 @@ class Writer:
         self.writeActivationAsPI(activation)
 
     def writeSuspendedTasks(self):
-        self.writeCollection(self.db.suspendedTasks, templates.task_count, self.writeSuspendedTask)
+        self.writeCollection(self.db.suspendedTasks, templates.suspended_task_count, self.writeSuspendedTask)
 
     def writeSuspendedTask(self, task: SuspendedTask):
         header = templates.suspended_task_header.format(asdict(task))
