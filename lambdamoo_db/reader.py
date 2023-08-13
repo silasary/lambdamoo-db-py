@@ -554,10 +554,13 @@ class Reader:
         if not headerMatch:
             self.parse_error(f"Bad VM Header {header}")
         top = int(headerMatch.group("top"))
+        vector = int(headerMatch.group('vector'))
+        funcId = int(headerMatch.group('funcId'))
+        maxStackframes = int(headerMatch.group('maxStackframes'))
         stack = []
         for _ in range(top + 1):
             stack.append(self.read_activation(db))
-        return VM(local, stack)
+        return VM(local, stack, top, vector, funcId, maxStackframes)
 
     def _read_and_match(self, pattern, error_message):
         line = self.readString()

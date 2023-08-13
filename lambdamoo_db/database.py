@@ -85,6 +85,10 @@ class Activation:
 class VM:
     locals: dict
     stack: list[Activation | None]
+    top: int
+    vector: int
+    funcId: int
+    maxStackframes: int
 
 
 @attrs.define()
