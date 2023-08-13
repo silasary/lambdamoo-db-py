@@ -532,15 +532,16 @@ class Reader:
         db.suspendedTasks.append(task)
 
     def readInterruptedTasks(self, db: MooDatabase):
-        interruptedMatch = self._read_and_match(interruptedTaskCountRe, "Bad suspended tasks header")
+        interruptedMatch = self._read_and_match(interruptedTaskCountRe, "Bad interrupted tasks header")
         count = int(interruptedMatch.group("count"))
         self._read_and_process_items(db, count, self.readInterruptedTask)
 
     def readInterruptedTask(self, db: MooDatabase) -> None:
         headerMatch = self._read_and_match(interruptedTaskHeaderRe, "Bad interrupted tasks header")
         task_id = int(headerMatch.group("id"))
+        status = headerMatch.group('status')
         vm = self.readVM(db)
-        task = InterruptedTask(task_id, vm)
+        task = InterruptedTask(task_id, status, vm)
         db.interruptedTasks.append(task)
 
     def readVM(self, db: MooDatabase) -> VM:

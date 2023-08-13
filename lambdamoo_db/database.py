@@ -110,6 +110,7 @@ class SuspendedTask:
 @attrs.define()
 class InterruptedTask:
     id: int
+    status: str
     vm: VM = attrs.field(default=None)
 
 @attrs.define()
