@@ -259,6 +259,8 @@ class Reader:
             parents = [parents]
         children = self.readValue(db)
         obj = MooObject(oid, name, flags, owner, location, parents)
+        obj.contents = contents
+        obj.children = children
         if db.version >= DBVersions.DBV_Last_Move:
             obj.last_move = last_move
         numVerbs = self.readInt()
