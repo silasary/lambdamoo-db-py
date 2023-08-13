@@ -79,7 +79,7 @@ class Activation:
     unused2 = attrs.field(init=False, default=0)
     unused3 = attrs.field(init=False, default=0)
     unused4 = attrs.field(init=False, default=0)
-    rtEnv: dict[str, Any] = attrs.field(init=False)
+    rtEnv: dict[str, Any] = attrs.field(init=False, factory=dict)
 
 
 @attrs.define()
