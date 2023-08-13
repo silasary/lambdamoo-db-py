@@ -457,14 +457,20 @@ class Reader:
             self.parse_error("Could not find activation header")
 
         activation = Activation()
-        activation.this = int(headerMatch[1])
+        if db.version >= DBVersions.DBV_This:
+            activation.this = _this
+        else:
+            activation.this = int(headerMatch[1])
         activation.unused1 = int(headerMatch[2])
         activation.threaded = threaded
         activation.unused2 = int(headerMatch[3])
         activation.player = int(headerMatch[4])
         activation.unused3 = int(headerMatch[5])
         activation.programmer = int(headerMatch[6])
-        activation.vloc = int(headerMatch[7])
+        if db.version >= DBVersions.DBV_Anon:
+            activation.vloc = _vloc
+        else:
+            activation.vloc = int(headerMatch[7])
         activation.unused4 = int(headerMatch[8])
         activation.debug = bool(headerMatch[9])
         self.readString()  # /* Was argstr*/
@@ -497,12 +503,15 @@ class Reader:
         activation.stack = stack
         activation.code = code
         activation.rtEnv = rt
-        _temp = self.readValue(db)
+        activation.temp = self.readValue(db)
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
             self.parse_error("READ_ACTIV: bad pc")
+        activation.pc = int(pcMatch.group('pc'))
+        activation.bi_func = int(pcMatch.group('bi_func'))
+        activation.error = int(pcMatch.group('error'))
         if int(pcMatch.group("bi_func")):
-            func_name = self.readString()
+            activation.func_name = self.readString()
         return activation
 
     def readRTEnv(self, db: MooDatabase) -> dict[str, Any]:

@@ -83,6 +83,11 @@ class Activation:
     unused3 = attrs.field(init=False, default=0)
     unused4 = attrs.field(init=False, default=0)
     rtEnv: dict[str, Any] = attrs.field(init=False, factory=dict)
+    temp : Any = attrs.field(init=False, default=None)
+    pc: int = attrs.field(init=False, default=0)
+    bi_func: int = attrs.field(init=False, default=0)
+    func_name : str = attrs.field(init=False, default="")
+    error: int = attrs.field(init=False, default=0)
 
 
 @attrs.define()
