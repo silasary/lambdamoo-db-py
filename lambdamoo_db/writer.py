@@ -5,7 +5,7 @@ from attrs import define, asdict
 from lambdamoo_db.enums import MooTypes
 
 from . import templates
-from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, Verb, _Catch
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch
 
 
 @define
@@ -79,7 +79,7 @@ class Writer:
         self.writeClocks()
         self.writeTaskQueue()
         self.writeSuspendedTasks()
-        # self.writeInterruptedTasks()
+        self.writeInterruptedTasks()
         self.writeConnections()
         self.writeObjects()
         self.writeVerbs()
@@ -166,12 +166,10 @@ class Writer:
         self.writeCode(task.code)
 
     def writeActivationAsPI(self, activation: Activation):
-        self.writeValue(activation.unused1)
+        self.writeValue(-111)
         self.writeValue(activation.this)
-        self.writeValue(activation.unused1)
-        self.writeValue(activation.threaded)
         self.writeValue(activation.vloc)
-        self.write("\n")
+        self.writeInt(activation.threaded)
         activation_header = templates.activation_header.format(**asdict(activation))
         self.writeString(activation_header)
         self.writeString("No")
@@ -184,7 +182,18 @@ class Writer:
     def writeActivation(self, activation):
         langver = templates.langver.format(version=17)
         self.writeString(langver)
+        self.writeCode(activation.code)
+        self.writeRtEnv(activation.rtEnv)
+        header = templates.stack_header.format(slots=len(activation.stack))
+        self.writeString(header)
+        for i in activation.stack:
+            self.writeValue(i)
         self.writeActivationAsPI(activation)
+        self.writeValue(activation.temp)
+        header = templates.pc.format(**asdict(activation))
+        self.writeString(header)
+        if activation.bi_func:
+            self.writeString(activation.func_name)
 
     def writeSuspendedTasks(self):
         self.writeCollection(self.db.suspendedTasks, templates.suspended_task_count, self.writeSuspendedTask)
@@ -196,19 +205,26 @@ class Writer:
 
     def writeVM(self, vm: VM):
         self.writeValue(vm.locals)
+        header = templates.vm_header.format(**asdict(vm))
+        self.writeString(header)
+        for i in range(vm.top + 1):
+            self.writeActivation(vm.stack[i])
 
     def writeRtEnv(self, env: dict[str, Any]):
         header = templates.var_count.format(count=len(env))
         self.writeString(header)
         for name, value in env.items():
             self.writeString(name)
-            moo_type = TYPE_MAPPING[type(value)]
-            self.writeInt(moo_type)
-            if (moo_type != MooTypes.NONE):
-                self.write("\n")
-                self.writeValue(value)
-            self.write("\n")
+            self.writeValue(value)
 
+
+    def writeInterruptedTasks(self):
+        self.writeCollection(self.db.interruptedTasks, templates.interrupted_task_count, self.writeInterruptedTask)
+
+    def writeInterruptedTask(self, task: InterruptedTask):
+        header = templates.interrupted_task_header.format(**asdict(task))
+        self.writeString(header)
+        self.writeVM(task.vm)
 
     def writeConnections(self):
         # these are not useful
