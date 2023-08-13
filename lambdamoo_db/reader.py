@@ -8,7 +8,7 @@ import parse
 from . import templates
 from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
                        Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
-                       WaifReference, Connection)
+                       WaifReference, Connection, _Catch)
 from .enums import DBVersions, MooTypes, PropertyFlags
 
 logger = getLogger(__name__)
@@ -131,7 +131,7 @@ class Reader:
             case MooTypes.BOOL:
                 return self.readBool()
             case MooTypes._CATCH:
-                return self.readInt()
+                return _Catch(self.readInt())
             case MooTypes._FINALLY:
                 return self.readInt()
             case MooTypes.WAIF:
