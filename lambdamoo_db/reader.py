@@ -496,7 +496,7 @@ class Reader:
         activation = self.read_activation_as_pi(db)
         activation.stack = stack
         activation.code = code
-        activation.stack = stack
+        activation.rtEnv = rt
         _temp = self.readValue(db)
         pchead = self.readString()
         if not (pcMatch := pcRe.match(pchead)):
