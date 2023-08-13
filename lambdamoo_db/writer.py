@@ -17,16 +17,16 @@ class Writer:
         self.f.write(text)
 
     def writeInt(self, i: int) -> None:
-        self.write(f"{i: d}")
+        self.write(f"{i:d}\n")
 
     def writeString(self, s: str) -> None:
         self.write(f"{s}\n")
 
     def writeObj(self, obj: ObjNum) -> None:
-        self.write(f"{obj: d}")
+        self.write(f"{obj:d}\n")
 
     def writeFloat(self, f: float) -> None:
-        self.write(f"{f: f}")
+        self.write(f"{f: f}\n")
 
     def writeBool(self, b: bool) -> None:
         return self.writeInt(1 if b else 0)
