@@ -228,7 +228,10 @@ class Writer:
 
     def writeConnections(self):
         # these are not useful
-        self.writeCollection([], "{count} active connections")
+        self.writeCollection(self.db.connections, "{count} active connections with listeners", self.writeConnection)
+
+    def writeConnection(self, connection):
+        self.writeString(f"{connection.who} {connection.listener}")
 
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
     writer = Writer(db=db, f=f)
