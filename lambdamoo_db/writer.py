@@ -44,18 +44,25 @@ class Writer:
     def writeValue(self, v: Any) -> None:
         value_type = type(v)
         if value_type == int:
+            self.writeInt(MooTypes.INT.value)
             self.writeInt(v)
         elif value_type == str:
+            self.writeInt(MooTypes.STR.value)
             self.writeString(v)
         elif value_type == ObjNum:
+            self.writeInt(MooTypes.OBJ.value)
             self.writeObj(v)
         elif value_type == float:
+            self.writeInt(MooTypes.FLOAT.value)
             self.writeFloat(v)
         elif value_type == bool:
+            self.writeInt(MooTypes.BOOL.value)
             self.writeBool(v)
         elif value_type == list:
+            self.writeInt(MooTypes.LIST.value)
             self.writeList(v)
         elif value_type == dict:
+            self.writeInt(MooTypes.MAP.value)
             self.writeMap(v)
         else:
             raise Exception("Unknown value type")
