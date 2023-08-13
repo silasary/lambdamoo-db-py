@@ -112,6 +112,11 @@ class InterruptedTask:
     id: int
     vm: VM = attrs.field(default=None)
 
+@attrs.define()
+class Connection:
+    who: int
+    listener: int
+
 TYPE_MAPPING = {
     int: MooTypes.INT,
     str: MooTypes.STR,
@@ -136,6 +141,7 @@ class MooDatabase:
     queuedTasks: list[QueuedTask] = attrs.field(factory=list)
     suspendedTasks: list[SuspendedTask] = attrs.field(factory=list)
     interruptedTasks: list[InterruptedTask] = attrs.field(factory=list)
+    connections: list[Connection] = attrs.field(factory=list)
     waifs: dict[int, Waif] = attrs.field(factory=dict)
     players: list[int] = attrs.field(factory=list)
     def all_verbs(self) -> Generator[Verb, None, None]:

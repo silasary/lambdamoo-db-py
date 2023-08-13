@@ -8,7 +8,7 @@ import parse
 from . import templates
 from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
                        Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
-                       WaifReference)
+                       WaifReference, Connection)
 from .enums import DBVersions, MooTypes, PropertyFlags
 
 logger = getLogger(__name__)
@@ -40,7 +40,7 @@ suspendedTaskHeaderRe = compile_re(templates.suspended_task_header)
 interruptedTaskCountRe = compile_re(templates.interrupted_task_count)
 interruptedTaskHeaderRe = re.compile(r"(?P<id>\d+) (?P<status>[\w\W]+)")
 vmHeaderRe = compile_re(templates.vm_header)
-connectionCountRe = re.compile(r"(?P<count>\d+) active connections(?P<listener_tag>| with listeners)")
+connectionCountRe = re.compile(r"(?P<count>\d+) active connections(?P<listener_tag> with listeners)?")
 langverRe = compile_re(templates.langver)
 stackheaderRe = compile_re(templates.stack_header)
 pcRe = compile_re(templates.pc)
@@ -277,8 +277,22 @@ class Reader:
     def readConnections(self, db: MooDatabase) -> None:
         headerMatch = self._read_and_match(connectionCountRe, "Bad active connections header line")
         count = int(headerMatch.group("count"))
-        self._read_and_process_items(db, count, lambda _: self.readString())
-        # Read and discard `count` lines; this data is useless to us.
+        if headerMatch.group('listener_tag'):
+            listeners = True
+        else:
+            listeners = False
+        self._read_and_process_items(db, count, lambda _: self.readConnection(db, listeners))
+
+    def readConnection(self, db: MooDatabase, listeners: bool) -> None:
+        line = self.readString()
+        if listeners:
+            who_str, listener_str = line.split(' ')
+            who = int(who_str)
+            listener = int(listener_str)
+        else:
+            who = int(line)
+            listener = 0
+        db.connections.append(Connection(who, listener))
 
     def readVerbs(self, db: MooDatabase) -> None:
         logger.debug(f"Reading {db.total_verbs} verbs")
