@@ -82,6 +82,7 @@ class Writer:
         self.writeInterruptedTasks()
         self.writeConnections()
         self.writeObjects()
+        self.writeInt(0)
         self.writeVerbs()
 
     def writePlayers(self) -> None:
@@ -129,6 +130,7 @@ class Writer:
         self.writeInt(prop.perms)
 
     def writeVerbs(self) -> None:
+        self.writeInt(len(list(self.db.all_verbs())))
         for verb in self.db.all_verbs():
             self.writeVerb(verb)
 
