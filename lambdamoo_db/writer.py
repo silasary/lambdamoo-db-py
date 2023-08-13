@@ -37,7 +37,7 @@ class Writer:
     def writeMap(self, m: dict[str, Any]) -> None:
         def writeMapItem(item):
             key, value = item
-            self.writeString(key)
+            self.writeValue(key)
             self.writeValue(value)
         return self.writeCollection(m.items(), writer=writeMapItem)
 
