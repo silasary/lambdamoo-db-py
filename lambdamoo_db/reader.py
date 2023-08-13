@@ -386,7 +386,7 @@ class Reader:
         owner = self.readObjnum()
         perms = self.readInt()
         preps = self.readInt()
-        verb = Verb(name, owner, perms, preps, -1)
+        verb = Verb(name, owner, perms, preps, obj.id)
         obj.verbs.append(verb)
 
     def readProperties(self, db: MooDatabase, obj: MooObject):
