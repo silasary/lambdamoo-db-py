@@ -92,24 +92,24 @@ class Writer:
         obj_num = obj.id
         self.writeString(f"#{obj_num}")
         self.writeString(obj.name)
-        self.writeInt(obj.flags)
+        self.writeInt(obj.flags.value)
         self.writeInt(obj.owner)
         self.writeValue(obj.location)
         self.writeValue(obj.last_move)
         self.writeValue(obj.contents)
-        self.writeValue(obj.parents)
+        if len(obj.parents) == 1:
+            self.writeValue(obj.parents[0])
+        else:
+            self.writeValue(obj.parents)
         self.writeValue(obj.children)
-        self.write("\n")
         self.writeCollection(obj.verbs, writer=self.writeVerbMetadata)
+        self.write_properties(obj)
 
     def writeVerbMetadata(self, verb: Verb) -> None:
         self.writeString(verb.name)
         self.writeInt(verb.owner)
-        self.write("\n")
         self.writeInt(verb.perms)
-        self.write("\n")
         self.writeInt(verb.preps)
-        self.write("\n")
 
     def write_properties(self, obj: MooObject) -> None:
         self.writeCollection(obj.properties, None, lambda prop: self.writeString(prop.propertyName))
@@ -142,7 +142,6 @@ class Writer:
             writer = self.writeString
         if template is None:
             self.writeInt(len(collection))
-            self.write("\n")
         else:
             self.writeString(template.format(count=len(collection)))
         for item in collection:
