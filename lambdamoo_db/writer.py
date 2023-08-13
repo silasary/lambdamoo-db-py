@@ -88,7 +88,10 @@ class Writer:
         self.writeCollection(self.db.players, writer=self.writeString)
 
     def writePending(self) -> None:
-        pass
+        self.writeCollection(self.db.finalizations, template=templates.pending_values_count, writer=self.writeFinalization)
+
+    def writeFinalization(self, v):
+        self.writeValue(v)
 
     def writeObjects(self) -> None:
         self.writeCollection(self.db.objects.values(), writer=self.writeObject)

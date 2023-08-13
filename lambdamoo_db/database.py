@@ -150,6 +150,7 @@ class MooDatabase:
     total_objects: int = attrs.field(init=False, default=0)
     total_verbs: int = attrs.field(init=False, default=0)
     total_players: int = attrs.field(init=False, default=0)
+    finalizations: list = attrs.field(factory=list)
     clocks: list = attrs.field(factory=list)
     objects: dict[int, MooObject] = attrs.field(factory=dict)
     queuedTasks: list[QueuedTask] = attrs.field(factory=list)
