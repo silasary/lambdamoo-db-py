@@ -8,7 +8,7 @@ import parse
 from . import templates
 from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
                        Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
-                       WaifReference, Connection, _Catch)
+                       WaifReference, Connection, _Catch, Clear, Err)
 from .enums import DBVersions, MooTypes, PropertyFlags
 
 logger = getLogger(__name__)
@@ -123,7 +123,7 @@ class Reader:
             case MooTypes.LIST:
                 return self.readList(db)
             case MooTypes.CLEAR:
-                pass
+                return Clear()
             case MooTypes.NONE:
                 pass
             case MooTypes.MAP:
@@ -149,7 +149,7 @@ class Reader:
         return int(self.readString())
 
     def readErr(self) -> int:
-        return self.readInt()
+        return Err(self.readInt())
 
     def readFloat(self) -> float:
         return float(self.readString())

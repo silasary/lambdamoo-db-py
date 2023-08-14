@@ -14,6 +14,12 @@ class Anon(int):
 class _Catch(int):
     pass
 
+class Clear:
+    pass
+
+class Err(int):
+    pass
+
 @attrs.define()
 class Verb:
     name: str

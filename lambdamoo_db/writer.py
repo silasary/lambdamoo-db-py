@@ -5,7 +5,7 @@ from attrs import define, asdict
 from lambdamoo_db.enums import MooTypes
 
 from . import templates
-from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err
 
 
 @define
@@ -68,6 +68,11 @@ class Writer:
             self.writeInt(MooTypes.NONE.value)
         elif value_type == _Catch:
             self.writeInt(MooTypes._CATCH.value)
+            self.writeInt(v)
+        elif value_type == Clear:
+            self.writeInt(MooTypes.CLEAR.value)
+        elif value_type == Err:
+            self.writeInt(MooTypes.ERR.value)
             self.writeInt(v)
         else:
             raise Exception("Unknown value type")
