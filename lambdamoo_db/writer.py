@@ -26,7 +26,7 @@ class Writer:
         self.write(f"{obj:d}\n")
 
     def writeFloat(self, f: float) -> None:
-        self.write(f"{f: f}\n")
+        self.write(f"{f:.19g}\n")
 
     def writeBool(self, b: bool) -> None:
         return self.writeInt(1 if b else 0)
