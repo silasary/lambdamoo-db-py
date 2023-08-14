@@ -7,7 +7,7 @@ import parse
 
 from . import templates
 from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
-                       Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
+                       Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
                        WaifReference, Connection, _Catch, Clear, Err)
 from .enums import DBVersions, MooTypes, PropertyFlags
 
@@ -357,8 +357,8 @@ class Reader:
             if not obj:
                 continue
             db.objects[obj.id] = obj
-        for o in db.objects.values():
-            self.process_propnames(db, o)
+#        for o in db.objects.values():
+#            self.process_propnames(db, o)
 
     def process_propnames(self, db: MooDatabase, obj: MooObject) -> None:
         names = []
@@ -394,17 +394,14 @@ class Reader:
         numProperties = self.readInt()
         propertyNames = []
         for _ in range(numProperties):
-            propertyNames.append(self.readString())
+            obj.propnames.append(self.readString())
         numPropdefs = self.readInt()
         for _ in range(numPropdefs):
-            propertyName = None
-            if propertyNames:
-                propertyName = propertyNames.pop(0)
             value = self.readValue(db)
             owner = self.readObjnum()
             perms = PropertyFlags(self.readInt())
-            property = Property(propertyName, value, owner, perms)
-            obj.properties.append(property)
+            propdef = Propdef(value, owner, perms)
+            obj.propdefs.append(propdef)
 
     def readPending(self, db: MooDatabase) -> None:
         valueMatch = self._read_and_match(pendingValueRe, "Bad pending finalizations")

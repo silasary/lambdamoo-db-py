@@ -5,7 +5,7 @@ from attrs import define, asdict
 from lambdamoo_db.enums import MooTypes
 
 from . import templates
-from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Property, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err
 
 
 @define
@@ -126,10 +126,10 @@ class Writer:
         self.writeInt(verb.preps)
 
     def write_properties(self, obj: MooObject) -> None:
-        self.writeCollection(obj.properties, None, lambda prop: self.writeString(prop.propertyName))
-        self.writeCollection(obj.properties, None, self.writeProperty)
+        self.writeCollection(obj.propnames, None, lambda prop: self.writeString(prop))
+        self.writeCollection(obj.propdefs, None, self.write_propdef)
 
-    def writeProperty(self, prop: Property):
+    def write_propdef(self, prop: Propdef):
         self.writeValue(prop.value)
         self.writeInt(prop.owner)
         self.writeInt(prop.perms.value)

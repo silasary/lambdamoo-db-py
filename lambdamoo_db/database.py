@@ -31,8 +31,7 @@ class Verb:
 
 
 @attrs.define()
-class Property:
-    propertyName: str
+class Propdef:
     value: Any
     owner: int
     perms: PropertyFlags = attrs.field(converter=PropertyFlags)
@@ -50,7 +49,8 @@ class MooObject:
     last_move: int = attrs.field(init=False, default=-1)
     contents: list[int] = attrs.field(init=False, factory=list)
     verbs: list[Verb] = attrs.field(init=False, factory=list)
-    properties: list[Property] = attrs.field(init=False, factory=list)
+    propnames: list[str] = attrs.field(init=False, factory=list)
+    propdefs: list[Propdef] = attrs.field(init=False, factory=list)
     anon: bool = attrs.field(default=False)
 
     @property
