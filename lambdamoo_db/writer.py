@@ -75,7 +75,7 @@ class Writer:
             self.writeInt(MooTypes.ERR.value)
             self.writeInt(v)
         else:
-            raise Exception("Unknown value type")
+            raise Exception(f"Unknown type {value_type}")   
 
     def writeDatabase(self) -> None:
         self.writeString(templates.version.format(version=17))
