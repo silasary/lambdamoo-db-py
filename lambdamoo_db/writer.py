@@ -135,8 +135,9 @@ class Writer:
         self.writeInt(prop.perms.value)
 
     def writeVerbs(self) -> None:
-        self.writeInt(len(list(self.db.all_verbs())))
-        for verb in self.db.all_verbs():
+        verbs = [verb for verb in self.db.all_verbs() if verb.code is not None]
+        self.writeInt(len(verbs))
+        for verb in verbs:
             self.writeVerb(verb)
 
     def writeVerb(self, verb: Verb) -> None:

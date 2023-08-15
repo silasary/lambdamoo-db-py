@@ -27,7 +27,7 @@ class Verb:
     perms: int
     preps: int
     object: int
-    code: list[str] = attrs.field(init=False, factory=list)
+    code: list[str] | None = None
 
 
 @attrs.define()
