@@ -172,7 +172,7 @@ class Writer:
     def writeQueuedTask(self, task: QueuedTask) -> str:
         taskHeader = templates.task_header.format(**asdict(task))
         self.writeString(taskHeader)
-        self.writeActivation(task.activation)
+        self.writeActivationAsPI(task.activation)
         self.writeRtEnv(task.rtEnv)
         self.writeCode(task.code)
 
