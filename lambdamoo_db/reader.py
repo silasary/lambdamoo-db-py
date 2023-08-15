@@ -417,7 +417,6 @@ class Reader:
         """Obsolete"""
         db.clocks.append(self.readString())
 
-
     def readTaskQueue(self, db: MooDatabase) -> None:
         queuedTasksMatch = self._read_and_match(taskCountRe, "Could not find task queue")
         numTasks = int(queuedTasksMatch.group("count"))
@@ -532,8 +531,8 @@ class Reader:
     def readSuspendedTask(self, db: MooDatabase) -> None:
         taskMatch = self._read_and_match(suspendedTaskHeaderRe, "Bad suspended task header")
         id = int(taskMatch.group("id"))
-        startTime = int(taskMatch.group("startTime"))
-        task = SuspendedTask(0, id, startTime)  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
+        startTime = int(taskMatch.group("start_time"))
+        task = SuspendedTask(firstLineno=0, id=id, start_time=startTime)  # Set line number to 0 for a suspended task since we don't know it (only opcodes, not text)
         if val := taskMatch.group("value"):
             task.value = self.readValue(db, known_type=int(val))
         task.vm = self.readVM(db)

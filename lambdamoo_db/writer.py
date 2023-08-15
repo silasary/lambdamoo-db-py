@@ -210,7 +210,7 @@ class Writer:
         self.writeCollection(self.db.suspendedTasks, templates.suspended_task_count, self.writeSuspendedTask)
 
     def writeSuspendedTask(self, task: SuspendedTask):
-        header = templates.suspended_task_header.format(asdict(task))
+        header = templates.suspended_task_header.format(**asdict(task))
         self.writeString(header)
         self.writeVM(task.vm)
 

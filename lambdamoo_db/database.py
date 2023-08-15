@@ -14,11 +14,14 @@ class Anon(int):
 class _Catch(int):
     pass
 
+
 class Clear:
     pass
 
+
 class Err(int):
     pass
+
 
 @attrs.define()
 class Verb:
@@ -89,10 +92,10 @@ class Activation:
     unused3 = attrs.field(init=False, default=0)
     unused4 = attrs.field(init=False, default=0)
     rtEnv: dict[str, Any] = attrs.field(init=False, factory=dict)
-    temp : Any = attrs.field(init=False, default=None)
+    temp: Any = attrs.field(init=False, default=None)
     pc: int = attrs.field(init=False, default=0)
     bi_func: int = attrs.field(init=False, default=0)
-    func_name : str = attrs.field(init=False, default="")
+    func_name: str = attrs.field(init=False, default="")
     error: int = attrs.field(init=False, default=0)
 
 
@@ -120,11 +123,12 @@ class QueuedTask:
 
 @attrs.define()
 class SuspendedTask:
-    firstLineno: int
-    id: int
-    st: int
+    firstLineno: int = attrs.field(default=0)
+    id: int = attrs.field(default=0)
+    start_time: int = attrs.field(default=0)
     value: Any = attrs.field(init=False, default=None)
     vm: VM = attrs.field(init=False, default=None)
+
 
 @attrs.define()
 class InterruptedTask:
@@ -132,10 +136,12 @@ class InterruptedTask:
     status: str
     vm: VM = attrs.field(default=None)
 
+
 @attrs.define()
 class Connection:
     who: int
     listener: int
+
 
 TYPE_MAPPING = {
     int: MooTypes.INT,
@@ -165,6 +171,7 @@ class MooDatabase:
     connections: list[Connection] = attrs.field(factory=list)
     waifs: dict[int, Waif] = attrs.field(factory=dict)
     players: list[int] = attrs.field(factory=list)
+
     def all_verbs(self) -> Generator[Verb, None, None]:
         for obj in self.objects.values():
             for verb in obj.verbs:
