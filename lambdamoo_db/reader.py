@@ -14,9 +14,9 @@ from .enums import DBVersions, MooTypes, PropertyFlags
 logger = getLogger(__name__)
 
 
-def load(filename: str) -> MooDatabase:
+def load(filename: str, encoding='latin-1') -> MooDatabase:
     """Load a database from a file"""
-    with open(filename, "r", encoding="latin-1") as f:
+    with open(filename, "r", encoding=encoding) as f:
         r = Reader(f, filename)
         return r.parse()
 
