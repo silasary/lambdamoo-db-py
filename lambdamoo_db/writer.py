@@ -5,7 +5,7 @@ from attrs import define, asdict
 from lambdamoo_db.enums import MooTypes
 
 from . import templates
-from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err, Anon
 
 
 @define
@@ -74,6 +74,9 @@ class Writer:
         elif value_type == Err:
             self.writeInt(MooTypes.ERR.value)
             self.writeInt(v)
+        elif value_type == Anon:
+            self.writeInt(MooTypes.ANON.value)
+            self.writeInt(v)
         else:
             raise Exception(f"Unknown type {value_type}")   
 
@@ -87,6 +90,7 @@ class Writer:
         self.writeInterruptedTasks()
         self.writeConnections()
         self.writeObjects()
+        self.writeAnons()
         self.writeInt(0)
         self.writeVerbs()
 
@@ -100,7 +104,12 @@ class Writer:
         self.writeValue(v)
 
     def writeObjects(self) -> None:
-        self.writeCollection(self.db.objects.values(), writer=self.writeObject)
+        objects = [o for o in self.db.objects.values() if not o.anon]
+        self.writeCollection(objects, writer=self.writeObject)
+
+    def writeAnons(self) -> None:
+        objects = [o for o in self.db.objects.values() if o.anon]
+        self.writeCollection(objects, writer=self.writeObject)
 
     def writeObject(self, obj: MooObject) -> None:
         obj_num = obj.id
