@@ -176,6 +176,8 @@ class MooDatabase:
     def ancestors(self, obj: MooObject) -> Generator[MooObject, None, None]:
         yield obj
         for parent in obj.parents:
+            if parent == -1:
+                continue
             yield from self.ancestors(self.objects[parent])
 
     def all_verbs(self) -> Generator[Verb, None, None]:
