@@ -275,10 +275,7 @@ class Reader:
 
     def readAnon(self, db: MooDatabase) -> None:
         oid = self.readInt()
-        if oid == -1:
-            self.parse_error("Not sure what to do with a -1 anon yet")
-        else:
-            return Anon(oid)
+        return Anon(oid)
 
     def readConnections(self, db: MooDatabase) -> None:
         headerMatch = self._read_and_match(connectionCountRe, "Bad active connections header line")
