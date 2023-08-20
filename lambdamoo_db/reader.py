@@ -191,12 +191,13 @@ class Reader:
         _class = self.readObjnum()
         owner = self.readObjnum()
         props = []
-        new = Waif(_class, owner, props)
+        new = Waif(_class, owner, props=props, prop_indexes=[])
         propdefs_length = self.readInt()
 
         db.waifs[index] = new
         while (cur := self.readInt()) < 3 * 32 and cur > -1:
             props.append(self.readValue(db))
+            new.prop_indexes.append(cur)
         _terminator = self.readString()
         return WaifReference(index)
 

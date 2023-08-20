@@ -68,6 +68,7 @@ class MooObject:
 class Waif:
     waif_class: int
     owner: int
+    prop_indexes: list[Any]
     props: list[Any]
 
 

@@ -1,17 +1,18 @@
 from io import TextIOWrapper
 from typing import Any
-from attrs import define, asdict
+from attrs import define, asdict, field
 
 from lambdamoo_db.enums import MooTypes
 
 from . import templates
-from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err, Anon
+from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err, Anon, WaifReference
 
 
 @define
 class Writer:
     db: MooDatabase
     f: TextIOWrapper
+    written_waifs: set = field(factory=set)
 
     def write(self, text) -> None:
         self.f.write(text)
@@ -77,6 +78,9 @@ class Writer:
         elif value_type == Anon:
             self.writeInt(MooTypes.ANON.value)
             self.writeInt(v)
+        elif value_type == WaifReference:
+            self.writeInt(MooTypes.WAIF.value)
+            self.writeWaifReference(v)
         else:
             raise Exception(f"Unknown type {value_type}")   
 
@@ -255,6 +259,29 @@ class Writer:
 
     def writeConnection(self, connection):
         self.writeString(f"{connection.who} {connection.listener}")
+
+    def writeWaifReference(self, v):
+        # If the reference has already been written, just refer to it
+        if v.index in self.written_waifs:
+            self.writeString(f"r {v.index}")
+            self.writeString(".")
+            return
+        # New waif
+        idx = v.index
+        self.written_waifs.add(v.index)
+        self.writeString(f"c {idx}")
+        w = self.db.waifs[v.index]
+        self.writeObj(w.waif_class)
+        self.writeObj(w.owner)
+        waifprops = 0
+        for a in self.db.ancestors(self.db.objects[w.waif_class]):
+            waifprops += len([p for p in a.propnames if p.startswith(':')])
+        self.writeInt(waifprops)
+        for idx, prop in zip(w.prop_indexes, w.props):
+            self.writeInt(idx)
+            self.writeValue(prop)
+        self.writeInt(-1)
+        self.writeString(".")
 
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
     writer = Writer(db=db, f=f)
