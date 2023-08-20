@@ -242,8 +242,10 @@ class Reader:
             self.parse_error("object number does not have #")
 
         if "recycled" in objNumber:
-            logger.debug(f"Skipping recycled object {objNumber}")
-            return None
+            oid = int(objNumber[2:].split(' ')[0])
+            obj = MooObject(oid, "", -1, -1, -1)
+            obj.recycled = True
+            return obj
 
         oid = int(objNumber[1:])
         name = self.readString()

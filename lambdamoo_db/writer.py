@@ -113,6 +113,9 @@ class Writer:
 
     def writeObject(self, obj: MooObject) -> None:
         obj_num = obj.id
+        if obj.recycled:
+            self.writeString("# {obj_num} recycled")
+            return
         self.writeString(f"#{obj_num}")
         self.writeString(obj.name)
         self.writeInt(obj.flags.value)

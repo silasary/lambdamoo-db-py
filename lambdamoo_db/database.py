@@ -55,6 +55,7 @@ class MooObject:
     propnames: list[str] = attrs.field(init=False, factory=list)
     propdefs: list[Propdef] = attrs.field(init=False, factory=list)
     anon: bool = attrs.field(default=False)
+    recycled: bool = attrs.field(default=False)
 
     @property
     def parent(self) -> int:
