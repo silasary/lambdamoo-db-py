@@ -173,6 +173,11 @@ class MooDatabase:
     waifs: dict[int, Waif] = attrs.field(factory=dict)
     players: list[int] = attrs.field(factory=list)
 
+    def ancestors(self, obj: MooObject) -> Generator[MooObject, None, None]:
+        yield obj
+        for parent in obj.parents:
+            yield from self.ancestors(self.objects[parent])
+
     def all_verbs(self) -> Generator[Verb, None, None]:
         for obj in self.objects.values():
             for verb in obj.verbs:
