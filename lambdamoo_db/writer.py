@@ -1,11 +1,15 @@
-from io import TextIOWrapper, StringIO
+from io import StringIO, TextIOWrapper
 from typing import Any
-from attrs import define, asdict, field
+
+from attrs import asdict, define, field
 
 from lambdamoo_db.enums import MooTypes
 
 from . import templates
-from .database import TYPE_MAPPING, VM, Activation, MooDatabase, MooObject, ObjNum, Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, _Catch, Clear, Err, Anon, WaifReference
+from .database import (TYPE_MAPPING, VM, Activation, Anon, Clear, Err,
+                       InterruptedTask, MooDatabase, MooObject, ObjNum,
+                       Propdef, QueuedTask, SuspendedTask, Verb, WaifReference,
+                       _Catch)
 
 
 @define
@@ -82,7 +86,7 @@ class Writer:
             self.writeInt(MooTypes.WAIF.value)
             self.writeWaifReference(v)
         else:
-            raise Exception(f"Unknown type {value_type}")   
+            raise Exception(f"Unknown type {value_type}")
 
     def writeDatabase(self) -> None:
         self.writeString(templates.version.format(version=17))
@@ -244,7 +248,6 @@ class Writer:
             self.writeString(name)
             self.writeValue(value)
 
-
     def writeInterruptedTasks(self):
         self.writeCollection(self.db.interruptedTasks, templates.interrupted_task_count, self.writeInterruptedTask)
 
@@ -283,9 +286,11 @@ class Writer:
         self.writeInt(-1)
         self.writeString(".")
 
+
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
     writer = Writer(db=db, f=f)
     writer.writeDatabase()
+
 
 def dumps(db: MooDatabase) -> str:
     f = StringIO()

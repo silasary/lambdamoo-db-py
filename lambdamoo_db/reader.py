@@ -1,14 +1,15 @@
 import re
-from io import TextIOWrapper, StringIO
+from io import StringIO, TextIOWrapper
 from logging import getLogger
 from typing import Any, NoReturn, Pattern, Union
 
 import parse
 
 from . import templates
-from .database import (VM, Activation, Anon, MooDatabase, MooObject, ObjNum,
-                       Propdef, QueuedTask, SuspendedTask, InterruptedTask, Verb, Waif,
-                       WaifReference, Connection, _Catch, Clear, Err)
+from .database import (VM, Activation, Anon, Clear, Connection, Err,
+                       InterruptedTask, MooDatabase, MooObject, ObjNum,
+                       Propdef, QueuedTask, SuspendedTask, Verb, Waif,
+                       WaifReference, _Catch)
 from .enums import DBVersions, MooTypes, PropertyFlags
 
 logger = getLogger(__name__)
@@ -26,6 +27,7 @@ def loads(data: str) -> MooDatabase:
     f = StringIO(data)
     r = Reader(f)
     return r.parse()
+
 
 def compile_re(template: str) -> Pattern[str]:
     compiled = parse.compile(template)

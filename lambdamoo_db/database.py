@@ -1,5 +1,7 @@
 from typing import Any, Generator
+
 import attrs
+
 from .enums import MooTypes, ObjectFlags, PropertyFlags
 
 
