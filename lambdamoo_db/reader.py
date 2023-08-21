@@ -1,5 +1,5 @@
 import re
-from io import TextIOWrapper
+from io import TextIOWrapper, StringIO
 from logging import getLogger
 from typing import Any, NoReturn, Pattern, Union
 
@@ -20,6 +20,12 @@ def load(filename: str, encoding='latin-1') -> MooDatabase:
         r = Reader(f, filename)
         return r.parse()
 
+
+def loads(data: str) -> MooDatabase:
+    """Load a database from a string"""
+    f = StringIO(data)
+    r = Reader(f)
+    return r.parse()
 
 def compile_re(template: str) -> Pattern[str]:
     compiled = parse.compile(template)

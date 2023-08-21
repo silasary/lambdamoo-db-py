@@ -1,4 +1,4 @@
-from io import TextIOWrapper
+from io import TextIOWrapper, StringIO
 from typing import Any
 from attrs import define, asdict, field
 
@@ -286,3 +286,8 @@ class Writer:
 def dump(db: MooDatabase, f: TextIOWrapper) -> None:
     writer = Writer(db=db, f=f)
     writer.writeDatabase()
+
+def dumps(db: MooDatabase) -> str:
+    f = StringIO()
+    dump(db, f)
+    return f.getvalue()
