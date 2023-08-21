@@ -18,5 +18,5 @@ args = parser.parse_args()
 db = load(args.load)
 
 # Dump to file
-with open(args.dump, 'w', newline='\n') as fp:
+with open(args.dump, 'w', newline='\n', encoding='latin1') as fp:
     dump(db, fp)
