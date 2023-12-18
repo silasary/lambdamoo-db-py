@@ -44,6 +44,7 @@ class Propdef:
 
 @attrs.define()
 class MooObject:
+    db: "MooDatabase" = attrs.field()
     id: int
     name: str
     flags: ObjectFlags = attrs.field(converter=ObjectFlags)
@@ -64,6 +65,12 @@ class MooObject:
         if len(self.parents) > 1:
             raise Exception("Object has multiple parents")
         return self.parents[0]
+
+    def prop_index(self, name: str) -> int:
+        try:
+            return self.propnames.index(name)
+        except ValueError:
+            return -1
 
 
 @attrs.define()
@@ -187,3 +194,109 @@ class MooDatabase:
         for obj in self.objects.values():
             for verb in obj.verbs:
                 yield verb
+
+    def set_property(self, obj_id: int, prop_name: str, value: Any) -> None:
+        obj = self.objects.get(obj_id)
+        if obj is None:
+            raise ValueError(f"Object {obj_id} not found")
+
+        prop_index = self._find_property_index(obj, prop_name)
+        if prop_index is None:
+            raise ValueError(f"Property {prop_name} not defined on object {obj_id} or its ancestors")
+
+        # Set clear property
+        if isinstance(value, Clear):
+            obj.propdefs[prop_index].value = Clear
+        else:
+            # Set non-clear property
+            obj.propdefs[prop_index].value = value
+            # Handle inheritance: update value in descendants if they have clear properties
+            self._update_descendants_clear_properties(obj_id, prop_name, value)
+
+    def _find_property_index(self, obj: MooObject, prop_name: str) -> int | None:
+        """
+        Recursively search for a property in the object and its ancestors.
+        Returns the index of the property or None if not found.
+        """
+        if prop_name in obj.propnames:
+            return obj.propnames.index(prop_name)
+
+        for parent_id in obj.parents:
+            parent = self.objects.get(parent_id)
+            if parent:
+                parent_index = self._find_property_index(parent, prop_name)
+                if parent_index is not None:
+                    return parent_index
+        return None
+
+    def _update_descendants_clear_properties(self, obj_id: int, prop_name: str, value: Any) -> None:
+        for child_id in self.objects[obj_id].children:
+            child = self.objects[child_id]
+            prop_index = self._find_property_index(child, prop_name)
+            if prop_index is not None and isinstance(child.propdefs[prop_index].value, Clear):
+                child.propdefs[prop_index].value = value
+                self._update_descendants_clear_properties(child_id, prop_name, value)
+
+    def get_property(self, obj_id: int, prop_name: str) -> Any:
+        obj = self.objects.get(obj_id)
+        if obj is None:
+            raise ValueError(f"Object {obj_id} not found")
+
+        prop_index = self._find_property_index(obj, prop_name)
+        if prop_index is None:
+            raise ValueError(f"Property {prop_name} not defined on object {obj_id} or its ancestors")
+
+        return self._resolve_property_value(obj, prop_name, prop_index)
+
+    def _resolve_property_value(self, obj: MooObject, prop_name: str, prop_index: int) -> Any:
+        value = obj.propdefs[prop_index].value
+        if not isinstance(value, Clear):
+            return value
+
+        # Property is clear, resolve from ancestors
+        for parent_id in obj.parents:
+            parent = self.objects.get(parent_id)
+            if parent:
+                parent_prop_index = self._find_property_index(parent, prop_name)
+                if parent_prop_index is not None:
+                    return self._resolve_property_value(parent, prop_name, parent_prop_index)
+
+        return Clear  # Return Clear if no non-clear value found in ancestors
+
+    def rename_property(self, obj_id: int, old_name: str, new_name: str) -> None:
+        obj = self.objects.get(obj_id)
+        if obj is None:
+            raise ValueError(f"Object {obj_id} not found")
+
+        prop_index = self._find_property_index(obj, old_name)
+        if prop_index is None:
+            raise ValueError(f"Property {old_name} not found on object {obj_id}")
+
+        # Check for name conflicts
+        if self._find_property_index(obj, new_name) is not None:
+            raise ValueError(f"Property {new_name} already exists on object {obj_id}")
+
+        # Rename the property
+        obj.propnames[prop_index] = new_name
+        self._update_descendants_property_name(obj_id, old_name, new_name)
+
+    def _update_descendants_property_name(self, obj_id: int, old_name: str, new_name: str) -> None:
+        for child_id in self.objects[obj_id].children:
+            child = self.objects[child_id]
+            prop_index = self._find_property_index(child, old_name)
+            if prop_index is not None:
+                child.propnames[prop_index] = new_name
+                self._update_descendants_property_name(child_id, old_name, new_name)
+
+    def get_property_dict(self, obj_id: int) -> dict[str, Any]:
+        obj = self.objects.get(obj_id)
+        if obj is None:
+            raise ValueError(f"Object {obj_id} not found")
+
+        prop_dict = {}
+        if obj.parent != -1:
+            prop_dict = self.get_property_dict(obj.parent)
+        for prop_name in obj.propnames:
+            prop_dict[prop_name] = self.get_property(obj_id, prop_name)
+
+        return prop_dict
