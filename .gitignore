@@ -2,3 +2,4 @@ __pycache__/
 /dist/
 /LambdaCore-latest.json
 /toastcore.json
+.aider*
