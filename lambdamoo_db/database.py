@@ -44,7 +44,6 @@ class Propdef:
 
 @attrs.define()
 class MooObject:
-    db: "MooDatabase" = attrs.field()
     id: int
     name: str
     flags: ObjectFlags = attrs.field(converter=ObjectFlags)
@@ -65,12 +64,6 @@ class MooObject:
         if len(self.parents) > 1:
             raise Exception("Object has multiple parents")
         return self.parents[0]
-
-    def prop_index(self, name: str) -> int:
-        try:
-            return self.propnames.index(name)
-        except ValueError:
-            return -1
 
 
 @attrs.define()
