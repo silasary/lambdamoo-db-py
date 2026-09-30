@@ -198,10 +198,12 @@ def find_verb(db: MooDatabase, obj: MooObject, wanted: str, inherited: bool = Tr
         if idx >= len(obj.verbs):
             raise LookupFailed(f"#{obj.id} has only {len(obj.verbs)} verbs")
         return VerbHit(obj, idx, obj.verbs[idx])
-    for o in ancestors(db, obj) if inherited else [obj]:
-        for idx, v in enumerate(o.verbs):
-            if verb_matches(v, wanted):
-                return VerbHit(o, idx, v)
+    # Waif class verbs are stored as ":name"; fall back to that spelling when nothing plain matches.
+    for name in (wanted, ":" + wanted) if not wanted.startswith(":") else (wanted,):
+        for o in ancestors(db, obj) if inherited else [obj]:
+            for idx, v in enumerate(o.verbs):
+                if verb_matches(v, name):
+                    return VerbHit(o, idx, v)
     raise LookupFailed(f"verb {wanted!r} not found on #{obj.id}{' or its ancestors' if inherited else ''}")
 
 

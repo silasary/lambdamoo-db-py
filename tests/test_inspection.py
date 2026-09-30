@@ -95,6 +95,19 @@ def test_find_verb_by_name_index_and_inheritance(db):
         find_verb(db, sysobj, wanted, inherited=False)
 
 
+def test_find_verb_falls_back_to_waif_verb_spelling(db):
+    su = resolve_object(db, "$string_utils")
+    plain = find_verb(db, su, "from_list").verb
+    waif_verb = Verb(":only_on_waifs", ObjNum(2), 173, -1, su.id)
+    su.verbs.append(waif_verb)
+    try:
+        assert find_verb(db, su, "only_on_waifs").verb is waif_verb
+        assert find_verb(db, su, ":only_on_waifs").verb is waif_verb
+        assert find_verb(db, su, "from_list").verb is plain
+    finally:
+        su.verbs.remove(waif_verb)
+
+
 def test_property_value_follows_clear(db):
     for obj in db.objects.values():
         cleared = [p for p in obj.properties[obj.propdefs_count:] if p.value is CLEAR and isinstance(p.propertyName, str)]
