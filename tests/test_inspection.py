@@ -1,24 +1,30 @@
+import os
+import pickle
+from io import StringIO
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
 
 from lambdamoo_db.cli import moodb
-from lambdamoo_db.database import CLEAR, MooError, ObjNum, Verb
+from lambdamoo_db.database import CLEAR, MooDatabase, MooError, MooObject, ObjNum, Property, Verb
 from lambdamoo_db.inspection import (
     LookupFailed,
-    ancestors,
+    all_properties,
+    cache_path_for,
+    find_slot,
     find_verb,
     format_value,
     load_cached,
+    lookup_property,
     property_value,
     resolve_object,
     split_ref,
     verb_args,
-    verb_name_matches,
     verb_perms,
+    verbcasecmp,
 )
-from lambdamoo_db.reader import load
+from lambdamoo_db.reader import Reader, load
 
 TOASTCORE = Path(__file__).parent.parent / "toastcore.db"
 
@@ -29,7 +35,7 @@ def db():
 
 
 @pytest.mark.parametrize(
-    "pattern,name,expected",
+    "verb,word,expected",
     [
         ("GET", "get", True),
         ("status_redirect*ion", "status_redirect", True),
@@ -39,11 +45,21 @@ def db():
         ("status_redirect*ion", "status_redirectionx", False),
         ("foo*", "foobar", True),
         ("foo*", "fo", False),
+        ("*", "anything", True),
         ("html_robots.txt", "html_robots.txt", True),
+        # Aliases are space-separated; any one may match.
+        ("l*ook examine ex", "ex", True),
+        ("l*ook examine ex", "loo", True),
+        ("l*ook examine ex", "exam", False),
+        # A later star keeps the verbcasecmp() state machine semantics.
+        ("a*b*c", "abc", True),
+        ("a*b*", "abzz", True),
+        ("a*b*c", "ac", False),
+        ("", "", False),
     ],
 )
-def test_verb_name_matches(pattern, name, expected):
-    assert verb_name_matches(pattern, name) is expected
+def test_verbcasecmp(verb, word, expected):
+    assert verbcasecmp(verb, word) is expected
 
 
 def test_verb_args_and_perms():
@@ -70,6 +86,7 @@ def test_split_ref():
 
 def test_resolve_dollar_name(db):
     assert resolve_object(db, "$string_utils").id == 20
+    assert resolve_object(db, "$STRING_UTILS").id == 20
     assert resolve_object(db, "#20").id == 20
     with pytest.raises(LookupFailed):
         resolve_object(db, "#999999")
@@ -82,12 +99,13 @@ def test_find_verb_by_name_index_and_inheritance(db):
     hit = find_verb(db, su, "from_list")
     assert (hit.obj.id, hit.verb.name) == (20, "from_list")
     assert find_verb(db, su, str(hit.index)).verb is hit.verb
+    with pytest.raises(LookupFailed):
+        find_verb(db, su, "²")  # a Unicode digit is a name, not an index
 
     # A verb defined only on an ancestor is found from the child, and reported on the ancestor.
     sysobj = db.objects[0]
-    own = {n for v in sysobj.verbs for n in v.name.split()}
     root = db.objects[1]
-    inherited = next(v for v in root.verbs if not any(verb_name_matches(n, a) for n in v.name.split() for a in own))
+    inherited = next(v for v in root.verbs if not any(verbcasecmp(own.name, a) for own in sysobj.verbs for a in v.name.split()))
     wanted = inherited.name.split()[0].replace("*", "")
     hit = find_verb(db, sysobj, wanted)
     assert hit.obj.id == 1
@@ -117,19 +135,92 @@ def test_property_value_follows_clear(db):
         pytest.skip("no inherited clear property in fixture")
     name = cleared[0].propertyName
     expected = next(
-        p.value for a in list(ancestors(db, obj))[1:] for p in a.properties if p.propertyName == name and p.value is not CLEAR
+        p.value for a in db.ancestors(obj)[1:] for p in a.properties if p.propertyName == name and p.value is not CLEAR
     )
     assert property_value(db, obj, name) == expected
-    assert property_value(db, obj, "name") == obj.name
+    assert property_value(db, obj, name.upper()) == expected
 
 
-def test_load_cached_writes_and_reuses_pickle(tmp_path):
-    first = load_cached(TOASTCORE, tmp_path)
-    pickles = list(tmp_path.glob("*.pickle"))
-    assert len(pickles) == 1
-    second = load_cached(TOASTCORE, tmp_path)
-    assert len(second.objects) == len(first.objects)
+def test_builtin_properties_match_toaststunt(db):
+    wizard = db.objects[2]
+    assert property_value(db, wizard, "name") == wizard.name
+    assert property_value(db, wizard, "wizard") == 1
+    assert property_value(db, wizard, "Programmer") == 1
+    assert property_value(db, db.objects[20], "wizard") == 0
+    assert property_value(db, db.objects[20], "owner") == ObjNum(2)
+    # parents/children are builtin functions, not properties.
+    with pytest.raises(LookupFailed):
+        property_value(db, wizard, "parents")
+
+
+def test_slot_lookup_agrees_with_reader_names(db):
+    """find_slot() places every named property at the slot where the reader put that name."""
+    for obj in db.objects.values():
+        for i, p in enumerate(obj.properties):
+            if isinstance(p.propertyName, str):
+                assert find_slot(db, obj, p.propertyName).index == i, (obj.id, p.propertyName)
+
+
+def multi_parent_db() -> MooDatabase:
+    """#3 has parents #1 and #2; #4 is a child of #3 with every slot clear."""
+    db = MooDatabase()
+
+    def add(num, parents, own, values):
+        o = MooObject(num, f"obj{num}", 0, 0, -1, [ObjNum(p) for p in parents])
+        names = own + [None] * (len(values) - len(own))
+        o.properties = [Property(n, v, 0, 5) for n, v in zip(names, values)]
+        o.propdefs_count = len(own)
+        db.objects[num] = o
+
+    add(0, [], [], [])
+    add(1, [], ["a1"], ["A-value"])
+    add(2, [], ["b1"], ["B-value"])
+    add(3, [1, 2], ["c1"], ["C-value", CLEAR, "C-b1"])
+    add(4, [3], [], [CLEAR, CLEAR, CLEAR])
+    for o in db.objects.values():
+        Reader(StringIO()).process_propnames(db, o)
+    return db
+
+
+def test_reader_names_inherited_slots_of_multi_parent_objects():
+    db = multi_parent_db()
+    assert [p.propertyName for p in db.objects[3].properties] == ["c1", "a1", "b1"]
+    assert [p.propertyName for p in db.objects[4].properties] == ["c1", "a1", "b1"]
+
+
+def test_clear_follows_the_parent_that_inherits_the_definer():
+    db = multi_parent_db()
+    child = db.objects[4]
+    assert property_value(db, child, "b1") == "C-b1"  # #4 clear -> #3's own value
+    hit = lookup_property(db, child, "a1")  # #4 clear -> #3 clear -> #1
+    assert (hit.value, hit.definer.id, hit.value_from.id) == ("A-value", 1, 1)
+    assert [(h.name, h.value) for h in all_properties(db, child)] == [("c1", "C-value"), ("a1", "A-value"), ("b1", "C-b1")]
+
+
+def test_load_cached_writes_reuses_and_prunes(tmp_path):
+    dump = tmp_path / "world.db"
+    dump.write_bytes(TOASTCORE.read_bytes())
+    cache = tmp_path / "cache"
+    first = load_cached(dump, cache)
+    assert len(list(cache.glob("*.pickle"))) == 1
+    second = load_cached(dump, cache)
     assert second.objects[20].name == first.objects[20].name
+
+    # A new version of the same dump replaces the old pickle instead of piling up.
+    stat = dump.stat()
+    os.utime(dump, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+    load_cached(dump, cache)
+    assert list(cache.glob("*.pickle")) == [cache_path_for(dump, cache)]
+    assert not list(cache.glob("*.tmp"))
+
+
+def test_load_cached_reparses_an_unreadable_pickle(tmp_path):
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    cache_path_for(TOASTCORE, cache).write_bytes(b"not a pickle")
+    db = load_cached(TOASTCORE, cache)
+    assert db.objects[20].name == "string utilities"
+    assert pickle.loads(cache_path_for(TOASTCORE, cache).read_bytes()).objects[20].name == "string utilities"
 
 
 def run(*args):
@@ -139,26 +230,86 @@ def run(*args):
 def test_cli_code_prop_grep_find_obj():
     r = run("code", "-n", "$string_utils:from_list")
     assert r.exit_code == 0, r.output
-    assert r.output.startswith("@program #20 $string_utils 'string utilities':[")
+    assert r.output.startswith('@program #20 $string_utils "string utilities":[5] "from_list"  this none this  rxd')
     assert "   1  " in r.output and r.output.rstrip().endswith(".")
 
-    r = run("prop", "$string_utils.name", "0.string_utils")
-    assert r.output.splitlines() == ['#20.name = "string utilities"', "#0.string_utils = #20"]
+    r = run("prop", "$string_utils.name", "0.string_utils", "#20.DESCRIPTION", "#2.wizard")
+    lines = r.output.splitlines()
+    assert lines[:2] == ['#20.name = "string utilities"', "#0.string_utils = #20"]
+    assert lines[2].startswith("#20.description (defined on #1) = ")
+    assert lines[3] == "#2.wizard = 1"
 
     r = run("grep", "-l", "-F", "tostr(@thelist)", "-o", "$string_utils")
-    assert r.exit_code == 0 and "'from_list'" in r.output
+    assert r.exit_code == 0 and '"from_list"' in r.output
 
     r = run("find", "string_utils")
-    assert "#20 $string_utils 'string utilities'" in r.output
+    assert '#20 $string_utils "string utilities"' in r.output
 
     r = run("obj", "0")
     assert r.exit_code == 0
     assert "##" not in r.output
-    assert "  parents   #1 $root_class" in r.output
+    assert '  parents   #1 $root_class "Root Class"' in r.output
+
+
+def test_cli_code_bare_ref_prints_every_verb():
+    r = run("code", "$string_utils")
+    assert r.exit_code == 0, r.output
+    assert r.output.count("@program #20 ") == 79
+
+
+def test_cli_grep_context_and_bad_regex():
+    r = run("grep", "-F", "-C", "1", "tostr(@thelist)", "-o", "20")
+    assert r.output.splitlines() == [
+        '#20:[5] from_list-4- if (separator == "")',
+        "#20:[5] from_list:5: return tostr(@thelist);",
+        "#20:[5] from_list-6- elseif (thelist)",
+    ]
+    r = run("grep", "foo(")
+    assert r.exit_code == 2 and "Invalid value for PATTERN" in r.output
+
+
+def test_cli_new_commands():
+    r = run("info")
+    assert "objects   127 (+0 anonymous)" in r.output and "tasks     1 queued" in r.output
+
+    r = run("props", "$string_utils")
+    assert r.exit_code == 0
+    assert "== #1 $root_class" in r.output and "(clear, from #78)" in r.output
+
+    r = run("find", "--verb", "from_list")
+    assert '#33 $seq_utils "sequence utilities":[8] "from_list"' in r.output
+
+    r = run("find", "--prop", "STRING_UTILS")
+    assert r.output == '#0 $sysobj "The System Object".string_utils\n'
+
+    r = run("refs", "$string_utils")
+    lines = r.output.splitlines()
+    assert lines[0] == '#0 $sysobj "The System Object".string_utils'
+    assert any(":[0] do_login_command:15: " in line for line in lines)
+
+    r = run("children", "$generic_utils")
+    assert '#20 $string_utils "string utilities"' in r.output
+    assert run("children", "-r", "1").output.count("\n") > run("children", "1").output.count("\n")
+
+    r = run("players")
+    assert '#2 "Wizard"  player programmer wizard' in r.output
+
+    r = run("tasks")
+    assert r.output.startswith("queued 419331400  2022-12-17 08:00:01Z  #79:schedule_measurement_task")
 
 
 def test_cli_lookup_errors_exit_nonzero():
     r = run("obj", "#999999")
     assert r.exit_code == 1 and "does not exist" in r.output
-    r = run("code", "$string_utils")
-    assert r.exit_code == 1 and "expected REF:VERB" in r.output
+    r = run("code", "$string_utils.name")
+    assert r.exit_code == 1 and "expected REF or REF:VERB" in r.output
+    r = run("obj", "#20.name")
+    assert r.exit_code == 1 and "expected an object reference" in r.output
+
+
+def test_cli_help_and_missing_db(monkeypatch):
+    monkeypatch.delenv("MOODB", raising=False)
+    r = CliRunner().invoke(moodb, ["grep", "--help"])
+    assert r.exit_code == 0 and "--context" in r.output
+    r = CliRunner().invoke(moodb, ["info"])
+    assert r.exit_code == 2 and "pass --db DUMP or set MOODB" in r.output

@@ -232,3 +232,24 @@ class MooDatabase:
         for obj in self.objects.values():
             for verb in obj.verbs:
                 yield verb
+
+    def ancestors(self, obj: MooObject) -> list[MooObject]:
+        """obj, then its ancestors in ToastStunt db_ancestors() order.
+
+        Depth-first through parents in declared order, each object once, missing
+        parents skipped. This is the order of inherited property slots and of
+        verb lookup.
+        """
+        order = [obj]
+        seen = {obj.id}
+
+        def visit(o: MooObject) -> None:
+            for p in o.parents:
+                parent = self.objects.get(int(p))
+                if parent is not None and parent.id not in seen:
+                    seen.add(parent.id)
+                    order.append(parent)
+                    visit(parent)
+
+        visit(obj)
+        return order
