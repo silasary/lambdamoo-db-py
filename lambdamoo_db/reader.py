@@ -429,6 +429,9 @@ class Reader:
                     obj = self.readObject_ng(db)
                     obj.anon = True
                     db.objects[obj.id] = obj
+        for o in db.objects.values():
+            if o.anon:
+                self.process_propnames(db, o)
 
     def readObjects(self, db: MooDatabase) -> None:
         db.objects = {}
@@ -446,14 +449,9 @@ class Reader:
             self.process_propnames(db, o)
 
     def process_propnames(self, db: MooDatabase, obj: MooObject) -> None:
-        names = []
-        parent = obj
-        while parent is not None:
-            names.extend(p.propertyName for p in parent.properties if p.propertyName is not None)
-            if len(parent.parents) > 1:
-                # todo: Identify order of multi-inheritence
-                break
-            parent = db.objects.get(int(parent.parent))
+        # Slots are the object's own propdefs, then each ancestor's in db_ancestors() order
+        # (db_properties.cc db_find_property), which covers multiple inheritance too.
+        names = [p.propertyName for a in db.ancestors(obj) for p in a.properties[: a.propdefs_count]]
         i = 1
         for p in obj.properties:
             try:

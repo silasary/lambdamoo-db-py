@@ -18,6 +18,7 @@ dependencies = [
 moodb2flat = "lambdamoo_db.cli:moodb2flat"
 moodb-split = "lambdamoo_db.cli:moodb_split"
 moodb-join = "lambdamoo_db.cli:moodb_join"
+moodb = "lambdamoo_db.cli:moodb"
 
 [build-system]
 requires = ["hatchling"]
