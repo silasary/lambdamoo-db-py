@@ -94,6 +94,68 @@ def test_resolve_dollar_name(db):
         resolve_object(db, "$no_such_name_here")
 
 
+def test_cli_nested_object_references(db, monkeypatch):
+    """Namespace chains work for object, program and final-property reads."""
+    import lambdamoo_db.cli as cli
+
+    monkeypatch.setattr(cli, "load_cached", lambda *_: db)
+    runner = CliRunner()
+    # #0.string_utils -> #20; builtin owner -> #2. No new fixture props.
+    for args, expected in [
+        (["obj", "$string_utils.owner"], '#2'),
+        (["prop", "$string_utils.owner.name"], '#2.name'),
+        (["code", "$string_utils.owner:look_self"], '@program'),
+        (["children", "$string_utils.owner"], ''),
+    ]:
+        result = runner.invoke(moodb, ["--db", str(TOASTCORE), *args])
+        assert result.exit_code == 0, result.output
+        assert expected in result.output
+    result = runner.invoke(moodb, ["--db", str(TOASTCORE), "obj", "$string_utils.name"])
+    assert result.exit_code != 0
+    assert "not an object" in result.output
+
+
+def test_nested_resolver_rejects_missing_and_malformed_references(db):
+    assert resolve_object(db, "$string_utils.owner").id == 2
+    assert resolve_object(db, "#0.STRING_UTILS.owner").id == 2
+    for ref in ("$string_utils.owner.", "$string_utils..owner", "#20:look", "#20junk"):
+        with pytest.raises(LookupFailed):
+            resolve_object(db, ref)
+    with pytest.raises(LookupFailed, match="not an object"):
+        resolve_object(db, "$string_utils.name")
+
+
+def test_cli_nested_properties_preserve_literal_dotted_names(monkeypatch):
+    import lambdamoo_db.cli as cli
+
+    synthetic = MooDatabase()
+    definitions = [
+        (0, [], ["namespace"], [ObjNum(4)]),
+        (1, [], ["field.with.dot", "member", "member.name"], ["literal", ObjNum(2), "literal precedence"]),
+        (2, [], ["field.with.dot"], ["nested literal"]),
+        (4, [1], [], [CLEAR, CLEAR, CLEAR]),
+    ]
+    for num, parents, own, values in definitions:
+        obj = MooObject(num, f"obj{num}", 0, 0, -1, [ObjNum(p) for p in parents])
+        obj.properties = [Property(n, v, 0, 5) for n, v in zip(own + [None] * (len(values) - len(own)), values)]
+        obj.propdefs_count = len(own)
+        synthetic.objects[num] = obj
+    for obj in synthetic.objects.values():
+        Reader(StringIO()).process_propnames(synthetic, obj)
+    monkeypatch.setattr(cli, "load_cached", lambda *_: synthetic)
+    runner = CliRunner()
+    for ref, expected in [
+        ("$namespace.FIELD.WITH.DOT", '"literal"'),
+        ("$namespace.member.field.with.dot", '"nested literal"'),
+        ("$namespace.member.name", '"literal precedence"'),
+        ("$namespace.member.owner", "#0"),
+    ]:
+        result = runner.invoke(moodb, ["--db", str(TOASTCORE), "prop", ref])
+        assert result.exit_code == 0, result.output
+        assert expected in result.output
+    assert resolve_object(synthetic, "$namespace.member").id == 2
+
+
 def test_find_verb_by_name_index_and_inheritance(db):
     su = resolve_object(db, "$string_utils")
     hit = find_verb(db, su, "from_list")
@@ -302,9 +364,9 @@ def test_cli_lookup_errors_exit_nonzero():
     r = run("obj", "#999999")
     assert r.exit_code == 1 and "does not exist" in r.output
     r = run("code", "$string_utils.name")
-    assert r.exit_code == 1 and "expected REF or REF:VERB" in r.output
+    assert r.exit_code == 1 and "not an object" in r.output
     r = run("obj", "#20.name")
-    assert r.exit_code == 1 and "expected an object reference" in r.output
+    assert r.exit_code == 1 and "not an object" in r.output
 
 
 def test_cli_help_and_missing_db(monkeypatch):

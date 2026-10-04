@@ -29,11 +29,33 @@ moodb refs '$httpd'            # who points at #N, in properties and code
 |---|---|
 | `#20`, `20` | object number |
 | `$string_utils` | the object in `#0.string_utils` (case-insensitive) |
+| `$namespace.member`, `#20.owner` | follow object-valued properties; each intermediate value must refer to an existing object |
 | `REF:NAME` | verb matched the way the server matches calls (`*` abbreviations, aliases) |
 | `REF:5` | the verb at 0-based index 5 on REF itself, the order in the dump and in `verbs` output |
 | `REF.NAME` | property, case-insensitive, including builtins such as `name`, `owner`, `wizard` |
 
 Quote references in the shell: `$name` would otherwise be expanded.
+
+Object property chains work with every command that accepts an object reference:
+
+```sh
+moodb obj '$namespace.member'
+moodb children -r '$namespace.member'
+moodb code '$namespace.member:look_self'
+moodb prop '$namespace.member.name'
+```
+
+For `prop`, an existing literal property name wins at each object, including
+names containing dots. If the full remaining name is absent, its first segment
+selects the next object; the rest is resolved there. This preserves queries
+such as `#20.field.with.dot` while supporting `$namespace.member.name`.
+If both a literal dotted name and a traversal exist, read the target object's
+number with `obj` and use that number to select the traversal unambiguously.
+For `code`, the colon separates the complete object
+reference from the verb name (use `::name` for an explicitly named waif verb).
+Traversal reads effective inherited properties, including `clear`, just like
+ordinary property queries. A scalar, missing property or recycled object stops
+the traversal with a lookup error; no expressions or verbs are evaluated.
 
 ### Commands
 

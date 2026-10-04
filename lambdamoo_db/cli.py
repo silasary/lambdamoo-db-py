@@ -15,6 +15,7 @@ from .inspection import (
     descendants,
     dollar_names,
     find_references,
+    find_slot,
     find_verb,
     format_time,
     format_value,
@@ -99,7 +100,7 @@ def moodb(ctx: click.Context, db_path: str | None, no_cache: bool, cache_dir: st
     """Read-only inspection of a LambdaMOO/ToastStunt textdump.
 
     \b
-    Object references: #N, N, or $name (the object in #0.name).
+    Object references: #N, N, or $name, optionally followed by .object_property.
     Verbs:             REF:NAME (MOO name matching, inherited) or REF:N (0-based index on REF).
     Properties:        REF.NAME (inherited, clear values followed).
 
@@ -120,9 +121,6 @@ def _db(ctx: click.Context):
 
 def _object(db, ref: str):
     try:
-        ref, rest = split_ref(ref)
-        if rest:
-            raise LookupFailed(f"expected an object reference, got {ref + rest!r}")
         return resolve_object(db, ref)
     except LookupFailed as e:
         raise click.ClickException(str(e))
@@ -232,15 +230,15 @@ def code(ctx: click.Context, spec: tuple[str, ...], line_numbers: bool) -> None:
     db, names = _db(ctx)
     for s in spec:
         try:
-            ref, rest = split_ref(s)
+            ref, separator, wanted = s.partition(":")
             o = resolve_object(db, ref)
-            if rest == "":
+            if not separator:
                 for idx, v in enumerate(o.verbs):
                     _print_program(db, names, o, idx, v, line_numbers)
                 continue
-            if not rest.startswith(":") or len(rest) < 2:
+            if not wanted:
                 raise LookupFailed(f"expected REF or REF:VERB, got {s!r}")
-            hit = find_verb(db, o, rest[1:])
+            hit = find_verb(db, o, wanted)
         except LookupFailed as e:
             raise click.ClickException(str(e))
         _print_program(db, names, hit.obj, hit.index, hit.verb, line_numbers)
@@ -264,6 +262,15 @@ def prop(ctx: click.Context, spec: tuple[str, ...], full: bool) -> None:
                 raise LookupFailed(f"expected REF.PROP, got {s!r}")
             o = resolve_object(db, ref)
             name = rest[1:]
+            # A literal property wins at each object, preserving dotted names.
+            while name.lower() not in BUILTIN_PROPS and find_slot(db, o, name) is None:
+                part, separator, remainder = name.partition(".")
+                if not separator:
+                    break
+                o = resolve_object(db, f"#{o.id}.{part}")
+                name = remainder
+                if not name:
+                    raise LookupFailed(f"expected REF.PROP, got {s!r}")
             if name.lower() in BUILTIN_PROPS:
                 click.echo(f"#{o.id}.{name.lower()} = {format_value(builtin_value(o, name), None if full else 2000)}")
                 continue

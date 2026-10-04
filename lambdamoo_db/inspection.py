@@ -150,16 +150,30 @@ def split_ref(spec: str) -> tuple[str, str]:
 
 
 def resolve_object(db: MooDatabase, ref: str) -> MooObject:
-    if ref.startswith("$"):
-        value = property_value(db, db.objects[0], ref[1:])
+    """Resolve an object reference, optionally traversing object-valued properties."""
+    root, *path = ref.split(".")
+    if not _REF_RE.fullmatch(root) or any(
+        not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", part) for part in path
+    ):
+        raise LookupFailed(f"not an object reference: {ref!r} (use #N, N or $name, optionally .property)")
+    if root.startswith("$"):
+        value = property_value(db, db.objects[0], root[1:])
         if not isinstance(value, ObjNum):
-            raise LookupFailed(f"#0.{ref[1:]} is {format_value(value)}, not an object")
+            raise LookupFailed(f"#0.{root[1:]} is {format_value(value)}, not an object")
         num = int(value)
     else:
-        num = int(ref.lstrip("#"))
+        num = int(root.lstrip("#"))
     obj = db.objects.get(num)
     if obj is None:
         raise LookupFailed(f"#{num} does not exist (recycled or out of range)")
+    for part in path:
+        value = property_value(db, obj, part)
+        if not isinstance(value, ObjNum):
+            raise LookupFailed(f"#{obj.id}.{part} is {format_value(value)}, not an object")
+        num = int(value)
+        obj = db.objects.get(num)
+        if obj is None:
+            raise LookupFailed(f"#{num} does not exist (recycled or out of range)")
     return obj
 
 
